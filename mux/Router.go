@@ -33,7 +33,7 @@ type RouterConfig struct {
 	StaticFS            fs.FS
 }
 
-func SetupRouter(config RouterConfig, routes []Route) (*http.Server, chan os.Signal) {
+func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
 	var (
 		staticFS http.Handler
 	)
@@ -77,12 +77,16 @@ func SetupRouter(config RouterConfig, routes []Route) (*http.Server, chan os.Sig
 		m.HandleFunc(route.Path, http.HandlerFunc(handler.ServeHTTP))
 	}
 
+	return m
+}
+
+func SetupServer(config RouterConfig, mux http.Handler) (*http.Server, chan os.Signal) {
 	httpServer := &http.Server{
 		Addr:         config.Address,
 		WriteTimeout: time.Second * time.Duration(config.HttpWriteTimeout),
 		ReadTimeout:  time.Second * time.Duration(config.HttpReadTimeout),
 		IdleTimeout:  time.Second * time.Duration(config.HttpIdleTimeout),
-		Handler:      m,
+		Handler:      mux,
 	}
 
 	go func() {
