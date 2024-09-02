@@ -1,16 +1,16 @@
-package session
+package sessions
 
 import (
 	"fmt"
 	"net/http"
 
-	"github.com/gorilla/sessions"
+	gorillasessions "github.com/gorilla/sessions"
 )
 
 type Session[T any] interface {
 	Get(r *http.Request) (T, error)
-	GetSession(r *http.Request) (*sessions.Session, error)
-	GetStore() sessions.Store
+	GetSession(r *http.Request) (*gorillasessions.Session, error)
+	GetStore() gorillasessions.Store
 	Save(w http.ResponseWriter, r *http.Request) error
 	Set(r *http.Request, value T) error
 }
@@ -18,10 +18,10 @@ type Session[T any] interface {
 type SessionWrapper[T any] struct {
 	KeyName     string
 	SessionName string
-	Store       sessions.Store
+	Store       gorillasessions.Store
 }
 
-func NewSessionWrapper[T any](store sessions.Store, sessionName, keyName string) SessionWrapper[T] {
+func NewSessionWrapper[T any](store gorillasessions.Store, sessionName, keyName string) SessionWrapper[T] {
 	return SessionWrapper[T]{
 		KeyName:     keyName,
 		SessionName: sessionName,
@@ -32,7 +32,7 @@ func NewSessionWrapper[T any](store sessions.Store, sessionName, keyName string)
 func (sw SessionWrapper[T]) Get(r *http.Request) (T, error) {
 	var (
 		err     error
-		session *sessions.Session
+		session *gorillasessions.Session
 		empty   T
 	)
 
@@ -44,18 +44,18 @@ func (sw SessionWrapper[T]) Get(r *http.Request) (T, error) {
 	return any(result).(T), nil
 }
 
-func (sw SessionWrapper[T]) GetSession(r *http.Request) (*sessions.Session, error) {
+func (sw SessionWrapper[T]) GetSession(r *http.Request) (*gorillasessions.Session, error) {
 	return sw.Store.Get(r, sw.SessionName)
 }
 
-func (sw SessionWrapper[T]) GetStore() sessions.Store {
+func (sw SessionWrapper[T]) GetStore() gorillasessions.Store {
 	return sw.Store
 }
 
 func (sw SessionWrapper[T]) Save(w http.ResponseWriter, r *http.Request) error {
 	var (
 		err     error
-		session *sessions.Session
+		session *gorillasessions.Session
 	)
 
 	if session, err = sw.GetSession(r); err != nil {
@@ -68,7 +68,7 @@ func (sw SessionWrapper[T]) Save(w http.ResponseWriter, r *http.Request) error {
 func (sw SessionWrapper[T]) Set(r *http.Request, value T) error {
 	var (
 		err     error
-		session *sessions.Session
+		session *gorillasessions.Session
 	)
 
 	if session, err = sw.GetSession(r); err != nil {

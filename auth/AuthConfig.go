@@ -7,19 +7,16 @@ import (
 	"github.com/markbates/goth"
 )
 
-type SessionAuthHandler func(w http.ResponseWriter, r *http.Request, store sessions.Store, session *sessions.Session, user goth.User, err error)
+type AuthHandler func(w http.ResponseWriter, r *http.Request, store sessions.Store, session *sessions.Session, user goth.User, err error)
 
 /*
 SessionAuthConfig provides configuration information for authentication.
 It contains settings for different types of authentication.
 */
-type SessionAuthConfig struct {
+type AuthConfig struct {
 	CallbackURIPrefix string
-	ClientKey         string
-	ClientSecret      string
-	Handler           SessionAuthHandler
+	Handler           AuthHandler
 	ErrorPath         string
-	ExcludedPaths     []string
 	SessionName       string
 	Store             sessions.Store
 }

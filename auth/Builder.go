@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/sessions"
 	"github.com/markbates/goth"
@@ -14,42 +15,42 @@ import (
 )
 
 type Builder struct {
-	Config SessionAuthConfig
+	Config AuthConfig
 	Mux    *http.ServeMux
 }
 
-func NewBuilder(config SessionAuthConfig, mux *http.ServeMux) *Builder {
+func NewBuilder(config AuthConfig, mux *http.ServeMux) *Builder {
 	return &Builder{
 		Config: config,
 		Mux:    mux,
 	}
 }
 
-func (b *Builder) WithApple(scopes []string) *Builder {
-	redirectURI := fmt.Sprintf("%s/facebook/callback", b.Config.CallbackURIPrefix)
+func (b *Builder) WithApple(config OAuthConfig) *Builder {
+	redirectURI := fmt.Sprintf("%s/facebook/callback", b.normalizeCallbackURIPrefix())
 
 	goth.UseProviders(
-		apple.New(b.Config.ClientKey, b.Config.ClientSecret, redirectURI, nil, scopes...),
+		apple.New(config.ClientID, config.ClientSecret, redirectURI, nil, config.Scopes...),
 	)
 
 	return b
 }
 
-func (b *Builder) WithFacebook() *Builder {
-	redirectURI := fmt.Sprintf("%s/facebook/callback", b.Config.CallbackURIPrefix)
+func (b *Builder) WithFacebook(config OAuthConfig) *Builder {
+	redirectURI := fmt.Sprintf("%s/facebook/callback", b.normalizeCallbackURIPrefix())
 
 	goth.UseProviders(
-		facebook.New(b.Config.ClientKey, b.Config.ClientSecret, redirectURI),
+		facebook.New(config.ClientID, config.ClientSecret, redirectURI, config.Scopes...),
 	)
 
 	return b
 }
 
-func (b *Builder) WithGoogle(scopes []string) *Builder {
-	redirectURI := fmt.Sprintf("%s/google/callback", b.Config.CallbackURIPrefix)
+func (b *Builder) WithGoogle(config OAuthConfig) *Builder {
+	redirectURI := fmt.Sprintf("%s/google/callback", b.normalizeCallbackURIPrefix())
 
 	goth.UseProviders(
-		google.New(b.Config.ClientKey, b.Config.ClientSecret, redirectURI, scopes...),
+		google.New(config.ClientID, config.ClientSecret, redirectURI, config.Scopes...),
 	)
 
 	return b
@@ -58,7 +59,7 @@ func (b *Builder) WithGoogle(scopes []string) *Builder {
 func (b *Builder) Setup() *Builder {
 	gothic.Store = b.Config.Store
 
-	b.Mux.HandleFunc(fmt.Sprintf("%s/{provider}/callback", b.Config.CallbackURIPrefix), func(w http.ResponseWriter, r *http.Request) {
+	b.Mux.HandleFunc(fmt.Sprintf("GET %s/{provider}/callback", b.normalizeCallbackURIPrefix()), func(w http.ResponseWriter, r *http.Request) {
 		var (
 			err     error
 			user    goth.User
@@ -78,12 +79,28 @@ func (b *Builder) Setup() *Builder {
 			return
 		}
 
+		session.Values[UserSessionKey] = user
+
+		if err = b.Config.Store.Save(r, w, session); err != nil {
+			slog.Error("could not save user in session", "error", err)
+			http.Redirect(w, r, b.Config.ErrorPath, http.StatusTemporaryRedirect)
+			return
+		}
+
 		b.Config.Handler(w, r, b.Config.Store, session, user, nil)
 	})
 
-	b.Mux.HandleFunc(fmt.Sprintf("%s/{provider}", b.Config.CallbackURIPrefix), func(w http.ResponseWriter, r *http.Request) {
+	b.Mux.HandleFunc(fmt.Sprintf("GET %s/{provider}", b.normalizeCallbackURIPrefix()), func(w http.ResponseWriter, r *http.Request) {
 		gothic.BeginAuthHandler(w, r)
 	})
 
 	return b
+}
+
+func (b *Builder) normalizeCallbackURIPrefix() string {
+	if strings.HasPrefix(b.Config.CallbackURIPrefix, "/") {
+		return b.Config.CallbackURIPrefix
+	}
+
+	return "/" + b.Config.CallbackURIPrefix
 }
