@@ -74,3 +74,11 @@ func JsonErrorMessage(w http.ResponseWriter, status int, message string) {
 
 	WriteJson(w, status, result)
 }
+
+/*
+JsonUnauthorized is a convenience wrapper to send a 401 with an
+arbitrary value.
+*/
+func JsonUnauthorized(w http.ResponseWriter, value any) {
+	WriteJson(w, http.StatusUnauthorized, value)
+}

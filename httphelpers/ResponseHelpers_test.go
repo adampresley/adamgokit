@@ -119,3 +119,27 @@ func TestJsonErrorMessage(t *testing.T) {
 	assert.Equal(t, want, got)
 	assert.Equal(t, http.StatusInternalServerError, result.StatusCode)
 }
+
+func TestJsonUnauthorized(t *testing.T) {
+	type TestingType struct {
+		Key1 string `json:"key1"`
+		Key2 int    `json:"key2"`
+	}
+
+	input := TestingType{
+		Key1: "Adam",
+		Key2: 10,
+	}
+
+	recorder := httptest.NewRecorder()
+	httphelpers.JsonUnauthorized(recorder, input)
+
+	result := recorder.Result()
+
+	want := []byte(`{"key1":"Adam","key2":10}`)
+	got, err := io.ReadAll(result.Body)
+
+	assert.NoError(t, err)
+	assert.Equal(t, want, got)
+	assert.Equal(t, http.StatusUnauthorized, result.StatusCode)
+}
