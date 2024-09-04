@@ -38,6 +38,30 @@ func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
 		staticFS http.Handler
 	)
 
+	/*
+	 * Ensure some sane defaults. Also panic on some things not being configured.
+	 */
+	if config.Address == "" {
+		panic("router address cannot be blank.")
+	}
+
+	if config.StaticContentPrefix == "" {
+		slog.Info("router StaticContentPrefix is blank. defaulting to '/static/'")
+		config.StaticContentPrefix = "/static/"
+	}
+
+	if config.HttpIdleTimeout == 0 {
+		config.HttpIdleTimeout = 120
+	}
+
+	if config.HttpReadTimeout == 0 {
+		config.HttpReadTimeout = 120
+	}
+
+	if config.HttpWriteTimeout == 0 {
+		config.HttpWriteTimeout = 120
+	}
+
 	m := http.NewServeMux()
 
 	if config.ServeStaticContent {
@@ -63,7 +87,7 @@ func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
 			}
 
 			if included {
-				handler = config.AuthConfig.UnauthorizedHandler(handler)
+				handler = config.AuthConfig.Middleware(handler)
 			}
 
 			/*
