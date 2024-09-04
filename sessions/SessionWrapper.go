@@ -7,6 +7,10 @@ import (
 	gorillasessions "github.com/gorilla/sessions"
 )
 
+var (
+	ErrSessionKeyNotFound = fmt.Errorf("session key not found")
+)
+
 type Session[T any] interface {
 	Get(r *http.Request) (T, error)
 	GetSession(r *http.Request) (*gorillasessions.Session, error)
@@ -38,6 +42,10 @@ func (sw SessionWrapper[T]) Get(r *http.Request) (T, error) {
 
 	if session, err = sw.GetSession(r); err != nil {
 		return empty, fmt.Errorf("could not get session in Get: %w", err)
+	}
+
+	if _, ok := session.Values[sw.KeyName]; !ok {
+		return empty, ErrSessionKeyNotFound
 	}
 
 	result := session.Values[sw.KeyName]
