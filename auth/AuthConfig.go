@@ -14,6 +14,7 @@ SessionAuthConfig provides configuration information for authentication.
 It contains settings for different types of authentication.
 */
 type AuthConfig struct {
+	BaseURL           string
 	CallbackURIPrefix string
 	Handler           AuthHandler
 	ErrorPath         string

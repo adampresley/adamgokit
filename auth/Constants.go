@@ -1,5 +1,10 @@
 package auth
 
 const (
-	UserSessionKey string = "user"
+	EmailKey     string = "email"
+	ProviderKey  string = "provider"
+	LastNameKey  string = "family_name"
+	FirstNameKey string = "given_name"
+	NameKey      string = "name"
+	AvatarURLKey string = "avatar_url"
 )

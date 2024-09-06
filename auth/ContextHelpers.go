@@ -2,19 +2,16 @@ package auth
 
 import (
 	"net/http"
-
-	"github.com/markbates/goth"
 )
 
 /*
-GetUserFromContext gets the Goth user from context and
-returns it as a concrete type. If it cannot be cast,
-and empty User struct is returned.
+GetEmailFromContext gets the Goth user email from context and
+returns it as a concrete type.
 */
-func GetUserFromContext(r *http.Request) goth.User {
-	if result, ok := r.Context().Value(UserSessionKey).(goth.User); ok {
+func GetEmailFromContext(r *http.Request) string {
+	if result, ok := r.Context().Value(EmailKey).(string); ok {
 		return result
 	}
 
-	return goth.User{}
+	return ""
 }
