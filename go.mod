@@ -3,7 +3,8 @@ module github.com/adampresley/adamgokit
 go 1.23.0
 
 require (
-	github.com/gorilla/sessions v1.1.1
+	github.com/antonlindstrom/pgstore v0.0.0-20220421113606-e3a6e3fed12a
+	github.com/gorilla/sessions v1.2.1
 	github.com/markbates/goth v1.80.0
 	github.com/stretchr/testify v1.9.0
 )
@@ -26,6 +27,7 @@ require (
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/jwx v1.2.29 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
+	github.com/lib/pq v1.10.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/crypto v0.21.0 // indirect
