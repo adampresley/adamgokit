@@ -3,7 +3,7 @@ package auth
 import (
 	"net/http"
 
-	"github.com/markbates/goth"
+	"github.com/adampresley/goth"
 )
 
 /*

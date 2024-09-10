@@ -7,23 +7,31 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/adampresley/adamgokit/httphelpers"
 	"github.com/gorilla/sessions"
-	"github.com/markbates/goth"
-	"github.com/markbates/goth/gothic"
-	"github.com/markbates/goth/providers/apple"
-	"github.com/markbates/goth/providers/facebook"
-	"github.com/markbates/goth/providers/google"
+	"github.com/adampresley/goth"
+	"github.com/adampresley/goth/gothic"
+	"github.com/adampresley/goth/providers/apple"
+	"github.com/adampresley/goth/providers/facebook"
+	"github.com/adampresley/goth/providers/google"
 )
 
 type Builder struct {
 	Config AuthConfig
 	Mux    *http.ServeMux
+
+	// Since Goth doesn't support "direct" auth schemes yet,
+	// we'll do it ourselves.
+	useDirect    bool
+	directConfig DirectConfig
 }
 
 func NewBuilder(config AuthConfig, mux *http.ServeMux) *Builder {
 	return &Builder{
 		Config: config,
 		Mux:    mux,
+
+		useDirect: false,
 	}
 }
 
@@ -32,6 +40,12 @@ func (b *Builder) WithApple(config OAuthConfig) *Builder {
 		apple.New(config.ClientID, config.ClientSecret, b.getCallbackURI("apple"), nil, config.Scopes...),
 	)
 
+	return b
+}
+
+func (b *Builder) WithDirect(config DirectConfig) *Builder {
+	b.useDirect = true
+	b.directConfig = config
 	return b
 }
 
@@ -77,7 +91,6 @@ func (b *Builder) Setup() *Builder {
 		/*
 		 * Store important information in the session.
 		 */
-
 		session.Values[EmailKey] = user.Email
 		session.Values[FirstNameKey] = user.FirstName
 		session.Values[LastNameKey] = user.LastName
@@ -99,6 +112,56 @@ func (b *Builder) Setup() *Builder {
 		r = r.WithContext(context.WithValue(r.Context(), "provider", r.PathValue("provider")))
 		gothic.BeginAuthHandler(w, r)
 	})
+
+	if b.useDirect {
+		b.Mux.HandleFunc(fmt.Sprintf("POST %s/direct", b.normalizeCallbackURIPrefix()), func(w http.ResponseWriter, r *http.Request) {
+			var (
+				err     error
+				user    goth.User
+				session *sessions.Session
+			)
+
+			orgID := httphelpers.GetFromRequest[string](r, "orgID")
+
+			loginInput := DirectUserLoginInput{
+				UserName: httphelpers.GetFromRequest[string](r, "userName"),
+				Password: httphelpers.GetFromRequest[string](r, "password"),
+				OrgID:    orgID,
+			}
+
+			user, err = b.directConfig.UserValidator(loginInput)
+
+			if err != nil {
+				GetFailureHandler(b.Config.Handler)(w, r, err)
+				return
+			}
+
+			if session, err = b.Config.Store.Get(r, b.Config.SessionName); err != nil {
+				slog.Error("could not get session", "error", err)
+				http.Redirect(w, r, b.Config.ErrorPath, http.StatusTemporaryRedirect)
+				return
+			}
+
+			/*
+			 * Store important information in the session.
+			 */
+			session.Values[EmailKey] = user.Email
+			session.Values[FirstNameKey] = user.FirstName
+			session.Values[LastNameKey] = user.LastName
+			session.Values[NameKey] = user.Name
+			session.Values[ProviderKey] = "direct"
+			session.Values[AvatarURLKey] = user.AvatarURL
+			session.Values[OrgIDKey] = orgID
+
+			if err = b.Config.Store.Save(r, w, session); err != nil {
+				slog.Error("could not save user in session", "error", err)
+				http.Redirect(w, r, b.Config.ErrorPath, http.StatusTemporaryRedirect)
+				return
+			}
+
+			b.Config.Handler(w, r, b.Config.Store, session, user, nil)
+		})
+	}
 
 	return b
 }

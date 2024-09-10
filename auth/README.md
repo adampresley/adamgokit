@@ -6,7 +6,7 @@ makes use of the following third-party libraries:
 - [Gorilla Sessions](https://github.com/gorilla/sessions)
 - [Goth](https://github.com/markbates/goth)
 
-## Google
+## OAuth
 
 ```go
 func AuthCallbackHandler(w http.ResponseWriter, r *http.Request, store gorillasessions.Store, session *gorillasessions.Session, user goth.User, err error) {
