@@ -9,37 +9,63 @@ makes use of the following third-party libraries:
 ## Google
 
 ```go
-mux := http.NewServeMux()
+func AuthCallbackHandler(w http.ResponseWriter, r *http.Request, store gorillasessions.Store, session *gorillasessions.Session, user goth.User, err error) {
+  var (
+    ident  *identity.Identity
+    dbUser *identity.User
+  )
 
-key := "my-secret-key"
-sessionStorage := sessions.NewCookieStore([]byte(key))
-sessionStorage.MaxAge(86400 * 2)
-sessionStorage.Options.Path = "/"
-sessionStorage.Options.HttpOnly = true
-sessionStorage.Options.Secure = false
+  /*
+   * First, if there was an error, do something about it.
+   */
+  if err != nil {
+    // Here you should log, or redirect, or return JSON
+    return
+  }
 
-googleAuthConfig := auth.GoogleAuthConfig{
-  SessionAuthConfig: auth.SessionAuthConfig{
-    AuthFailedHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-      nerdweb.WriteJSON(logger, w, http.StatusUnauthorized, map[string]interface{}{
-        "success": false,
-        "error":   err.Error(),
-      })
-    },
-    AuthSuccessHandler: func(w http.ResponseWriter, r *http.Request, user goth.User) {
-      logger.WithField("user", user).Info("Successful login")
-      http.Redirect(w, r, "/view-logs", http.StatusTemporaryRedirect)
-    },
-    ErrorPath:         "/unauthorized",
-    ExcludedPaths:     []string{"/", "/unauthorized", "/static", "/auth", "/main.js", "/index.html", "/version"},
-    HTMLResponsePaths: []string{"/view-logs", "/manage-servers", "/edit-server"},
-    SessionName:       "fireplacelogging",
-    Store:             sessionStorage,
-  },
-  GoogleClientID:     config.GoogleClientID,
-  GoogleClientSecret: config.GoogleClientSecret,
-  GoogleRedirectURI:  config.GoogleRedirectURI,
+  /*
+   * This is where you might do something like create identity/user records
+   * if the user is logging in through OAuth.
+   */
+
+	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
-googleauth.Setup(router, googleAuthConfig, logger)
+/*
+ * Setup session store
+ */
+store, storeCleaner, err := sessions.NewPGStore(config.DSN, config.SessionKey)
+
+if err != nil {
+  slog.Error("error setting up session storage. aborting", "error", err)
+  os.Exit(-1)
+}
+
+defer storeCleaner()
+
+/*
+ * Setup auth components
+ */
+authConfig := auth.AuthConfig{
+  BaseURL:           config.BaseURL,
+  CallbackURIPrefix: "/auth",
+  Handler:           AuthCallbackHandler,
+  ErrorPath:         "/error",
+  SessionName:       sessionName,
+  Store:             store,
+}
+
+// Here, "m" is a http.ServeMux
+auth.NewBuilder(authConfig, m).
+  WithGoogle(auth.OAuthConfig{
+    ClientID:     config.GoogleClientID,
+    ClientSecret: config.GoogleClientSecret,
+    Scopes:       auth.DefaultGoogleScopes,
+  }).
+  WithFacebook(auth.OAuthConfig{
+    ClientID:     config.FacebookClientID,
+    ClientSecret: config.FacebookClientSecret,
+    Scopes:       auth.DefaultFacebookScopes,
+  }).
+  Setup()
 ```
