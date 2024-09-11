@@ -8,6 +8,7 @@ import (
 type AuthMiddlewareConfig struct {
 	ExcludedPaths []string
 	Middleware    func(http.Handler) http.Handler
+	Providers     []string
 }
 
 func (am AuthMiddlewareConfig) IsPathExcluded(path string, exactMatch bool) bool {

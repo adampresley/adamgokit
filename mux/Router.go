@@ -35,7 +35,8 @@ type RouterConfig struct {
 
 func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
 	var (
-		staticFS http.Handler
+		staticFS      http.Handler
+		excludedPaths []string
 	)
 
 	/*
@@ -69,6 +70,16 @@ func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
 		m.Handle(fmt.Sprintf("GET %s", normalizeStaticContentPrefix(config.StaticContentPrefix)), staticFS)
 	}
 
+	if config.AuthConfig != nil {
+		// Add provider endpoints to the exclusion list
+		for _, authProvider := range config.AuthConfig.Providers {
+			excludedPaths = append(excludedPaths, fmt.Sprintf("/%s", authProvider))
+			excludedPaths = append(excludedPaths, fmt.Sprintf("/%s/callback", authProvider))
+		}
+
+		excludedPaths = append(excludedPaths, config.AuthConfig.ExcludedPaths...)
+	}
+
 	for _, route := range routes {
 		handler := route.Handler
 
@@ -79,7 +90,7 @@ func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
 		if config.AuthConfig != nil {
 			included := true
 
-			for _, excluded := range config.AuthConfig.ExcludedPaths {
+			for _, excluded := range excludedPaths {
 				if strings.HasPrefix(route.Path, excluded) {
 					included = false
 					break
