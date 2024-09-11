@@ -62,12 +62,12 @@ func (s MailService) Send(mail ...Mail) error {
 
 	for index := 0; index < len(mail); index++ {
 		m := gomail.NewMessage()
-		m.SetAddressHeader("From", mail[index].From.EmailAddress, mail[index].From.Name)
+		m.SetAddressHeader("From", mail[index].From.Email, mail[index].From.Name)
 		m.SetHeader("Subject", mail[index].Subject)
 		m.SetBody("text/html", mail[index].Body)
 
 		for _, p := range mail[index].To {
-			m.SetAddressHeader("To", p.EmailAddress, p.Name)
+			m.SetAddressHeader("To", p.Email, p.Name)
 		}
 
 		mailItems[index] = m

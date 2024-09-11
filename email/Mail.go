@@ -5,7 +5,7 @@ Mail represents an email. Who's sending, recipients, subject, and message
 */
 type Mail struct {
 	Body    string
-	From    Person
+	From    EmailAddress
 	Subject string
-	To      []Person
+	To      []EmailAddress
 }
