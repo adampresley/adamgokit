@@ -70,17 +70,17 @@ func (b *Builder) Setup() *Builder {
 			session *sessions.Session
 		)
 
-		user, err = gothic.CompleteUserAuth(w, r)
-
-		if err != nil {
-			slog.Error("user authorization failed due to an error", "error", err)
+		if session, err = b.Config.Store.Get(r, b.Config.SessionName); err != nil {
+			slog.Error("could not get session", "error", err)
 			http.Redirect(w, r, b.Config.ErrorPath+"?message="+err.Error(), http.StatusFound)
 			return
 		}
 
-		if session, err = b.Config.Store.Get(r, b.Config.SessionName); err != nil {
-			slog.Error("could not get session", "error", err)
-			http.Redirect(w, r, b.Config.ErrorPath+"?message="+err.Error(), http.StatusFound)
+		user, err = gothic.CompleteUserAuth(w, r)
+
+		if err != nil {
+			slog.Error("user authorization failed due to an error", "error", err)
+			b.Config.Handler(w, r, b.Config.Store, session, user, err)
 			return
 		}
 
