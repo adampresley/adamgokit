@@ -33,3 +33,29 @@ func SetupSession(w http.ResponseWriter, r *http.Request, config *AuthConfig, us
 
 	return nil
 }
+
+func DeleteSession(w http.ResponseWriter, r *http.Request, config *AuthConfig) error {
+	var (
+		err     error
+		session *sessions.Session
+	)
+
+	if session, err = config.Store.Get(r, config.SessionName); err != nil {
+		return err
+	}
+
+	session.Options.MaxAge = -1
+
+	session.Values[EmailKey] = ""
+	session.Values[FirstNameKey] = ""
+	session.Values[LastNameKey] = ""
+	session.Values[NameKey] = ""
+	session.Values[ProviderKey] = ""
+	session.Values[AvatarURLKey] = ""
+
+	if err = config.Store.Save(r, w, session); err != nil {
+		return err
+	}
+
+	return nil
+}
