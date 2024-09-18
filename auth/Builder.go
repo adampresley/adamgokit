@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strings"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/adampresley/goth/providers/direct"
 	"github.com/adampresley/goth/providers/facebook"
 	"github.com/adampresley/goth/providers/google"
-	"github.com/gorilla/sessions"
 )
 
 type Builder struct {
@@ -63,54 +61,18 @@ func (b *Builder) WithGoogle(config OAuthConfig) *Builder {
 func (b *Builder) Setup() *Builder {
 	gothic.Store = b.Config.Store
 
-	callbackHandler := func(w http.ResponseWriter, r *http.Request) {
-		var (
-			err     error
-			user    goth.User
-			session *sessions.Session
-		)
-
-		if session, err = b.Config.Store.Get(r, b.Config.SessionName); err != nil {
-			slog.Error("could not get session", "error", err)
-			http.Redirect(w, r, b.Config.ErrorPath+"?message="+err.Error(), http.StatusFound)
-			return
-		}
-
-		user, err = gothic.CompleteUserAuth(w, r)
-
-		if err != nil {
-			slog.Error("user authorization failed due to an error", "error", err)
-			b.Config.Handler(w, r, b.Config.Store, session, user, err)
-			return
-		}
-
-		/*
-		 * Store important information in the session.
-		 */
-		session.Values[EmailKey] = user.Email
-		session.Values[FirstNameKey] = user.FirstName
-		session.Values[LastNameKey] = user.LastName
-		session.Values[NameKey] = user.Name
-		session.Values[ProviderKey] = user.Provider
-		session.Values[AvatarURLKey] = user.AvatarURL
-
-		if err = b.Config.Store.Save(r, w, session); err != nil {
-			slog.Error("could not save user in session", "error", err)
-			http.Redirect(w, r, b.Config.ErrorPath+"?message="+err.Error(), http.StatusFound)
-			return
-		}
-
-		b.Config.Handler(w, r, b.Config.Store, session, user, nil)
-	}
-
 	b.Mux.HandleFunc(
 		fmt.Sprintf("GET %s/{provider}/callback", b.normalizeCallbackURIPrefix()),
-		callbackHandler,
+		func(w http.ResponseWriter, r *http.Request) {
+			successAuthCallback(w, r, &b.Config)
+		},
 	)
 
 	b.Mux.HandleFunc(
 		fmt.Sprintf("POST %s/{provider}/callback", b.normalizeCallbackURIPrefix()),
-		callbackHandler,
+		func(w http.ResponseWriter, r *http.Request) {
+			successAuthCallback(w, r, &b.Config)
+		},
 	)
 
 	b.Mux.HandleFunc(fmt.Sprintf("GET %s/{provider}", b.normalizeCallbackURIPrefix()), func(w http.ResponseWriter, r *http.Request) {
