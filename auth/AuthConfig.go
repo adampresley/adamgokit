@@ -11,6 +11,7 @@ It contains settings for different types of authentication.
 type AuthConfig struct {
 	BaseURL           string
 	CallbackURIPrefix string
+	Debug             bool
 	Handler           AuthHandler
 	ErrorPath         string
 	SessionName       string

@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -31,6 +32,10 @@ func (b *Builder) WithApple(config OAuthConfig) *Builder {
 		apple.New(config.ClientID, config.ClientSecret, b.getCallbackURI("apple"), nil, config.Scopes...),
 	)
 
+	if b.Config.Debug {
+		slog.Info("AUTH: Added Apple provider", "callbackURI", b.getCallbackURI("apple"))
+	}
+
 	return b
 }
 
@@ -38,6 +43,10 @@ func (b *Builder) WithDirect(config DirectConfig) *Builder {
 	goth.UseProviders(
 		direct.New(config.LoginURI, config.UserFetcher, config.CredChecker),
 	)
+
+	if b.Config.Debug {
+		slog.Info("AUTH: Added Direct provider")
+	}
 
 	return b
 }
@@ -47,6 +56,10 @@ func (b *Builder) WithFacebook(config OAuthConfig) *Builder {
 		facebook.New(config.ClientID, config.ClientSecret, b.getCallbackURI("facebook"), config.Scopes...),
 	)
 
+	if b.Config.Debug {
+		slog.Info("AUTH: Added Facebook provider", "callbackURI", b.getCallbackURI("facebook"))
+	}
+
 	return b
 }
 
@@ -54,6 +67,10 @@ func (b *Builder) WithGoogle(config OAuthConfig) *Builder {
 	goth.UseProviders(
 		google.New(config.ClientID, config.ClientSecret, b.getCallbackURI("google"), config.Scopes...),
 	)
+
+	if b.Config.Debug {
+		slog.Info("AUTH: Added Google provider", "callbackURI", b.getCallbackURI("google"))
+	}
 
 	return b
 }
