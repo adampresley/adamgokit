@@ -11,7 +11,7 @@ Wait will return a channel with an interrupt signal attached. Callers
 must use "<- waiter.Wait()" to block.
 */
 func Wait() chan os.Signal {
-	quit := make(chan os.Signal)
+	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	return quit

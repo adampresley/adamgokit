@@ -9,3 +9,4 @@ that I use all the time.
 - [Rendering](rendering/README.md)
 - [HTTP Sessions](sessions/README.md)
 - [Slices](slices/README.md)
+- [Waiter](waiter/README.md)
