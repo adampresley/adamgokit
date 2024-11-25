@@ -10,7 +10,7 @@ func BreakIntoGroups[T any](collection []T, groupSize int) [][]T {
 	)
 
 	for i := 0; i < len(collection); i += groupSize {
-		end += i + groupSize
+		end = i + groupSize
 
 		if end > len(collection) {
 			end = len(collection)
