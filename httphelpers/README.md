@@ -40,6 +40,18 @@ inputs := httphelpers.GetStringListFromRequest(r, "input", ",")
 // result is []string{"1", "5", "10"}
 ```
 
+### ReadJSONBody
+
+**ReadJSONBody** reads the body content from an http.Request as JSON data into
+the provided destination variable.
+
+```go
+dest := []string{}
+
+// r is an http.Request
+err := httphelpers.ReadJSONBody(r, &dest)
+```
+
 ## Responses
 
 ### WriteJson
@@ -99,6 +111,16 @@ httphelpers.JsonInternalServerError(w, output)
 ### JsonErrorMessage
 
 **JsonErrorMessage** returns a specified status code along with a generic structure containing an error message
+in JSON.
+
+```go
+httphelpers.JsonErrorMessage(w, http.StatusInternalServerError, "something went wrong")
+// The result written is {"message": "something went wrong"}
+```
+
+### JsonUnauthorized
+
+**JsonUnauthorized** returns a status code _401 Unauthorized_ along with an arbitrary structure converted to JSON.
 in JSON.
 
 ```go
