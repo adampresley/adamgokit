@@ -8,37 +8,37 @@ MailService provides the basic ability to send email. This package provides basi
 
 ```go
 service := email.NewMailService(email.Config{
-	Host: "mail.something.com",
-	Password: "password",
-	Port: 25,
-	UserName: "user",
+  Host: "mail.something.com",
+  Password: "password",
+  Port: 25,
+  UserName: "user",
 })
 
 if err = service.Connect(); err != nil {
-	// Handle error
+  // Handle error
 }
 
 mail := email.Mail{
-	Body: "This is an example",
-	From: email.Person{
-		Name: "Adam",
-		EmailAddress: "test@test.com",
-	},
-	Subject: "This is a sample",
-	To: []Person{
-		{
-			Name: "Bob Hope",
-			EmailAddress: "address1@test.com",
-		},
-		{
-			Name: "Elvis Presley",
-			EmailAddress: "address2@test.com",
-		},
-	},
+  Body: "This is an example",
+  From: email.Person{
+    Name: "Adam",
+    EmailAddress: "test@test.com",
+  },
+  Subject: "This is a sample",
+  To: []Person{
+    {
+      Name: "Bob Hope",
+      EmailAddress: "address1@test.com",
+    },
+    {
+      Name: "Elvis Presley",
+      EmailAddress: "address2@test.com",
+    },
+  },
 }
 
 if err = service.Send(mail); err != nil {
-	// Handle error
+  // Handle error
 }
 ```
 
