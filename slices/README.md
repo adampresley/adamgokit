@@ -93,3 +93,17 @@ linksToPeople := slices.Map(input, func(input Person, index int) []string {
 //   `<a href="/person/3">Roger</a>`,
 // }
 ```
+
+## Merge
+
+Merge takes two slices, combines their unique values, and returns a new slice.
+
+```go
+sliceA := []string{"A", "B", "D"}
+sliceB := []string{"B", "E", "F"}
+
+want := []string{"A", "B", "D", "E", "F"}
+got := slices.Merge(sliceA, sliceB)
+
+// Result: []string{"A", "B", "D", "E", "F"}
+```
