@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/adampresley/adamgokit/auth"
+	"github.com/rs/cors"
 )
 
 type Route struct {
@@ -121,7 +122,7 @@ func SetupServer(config RouterConfig, mux http.Handler) (*http.Server, chan os.S
 		WriteTimeout: time.Second * time.Duration(config.HttpWriteTimeout),
 		ReadTimeout:  time.Second * time.Duration(config.HttpReadTimeout),
 		IdleTimeout:  time.Second * time.Duration(config.HttpIdleTimeout),
-		Handler:      mux,
+		Handler:      cors.Default().Handler(mux),
 	}
 
 	go func() {
@@ -134,7 +135,7 @@ func SetupServer(config RouterConfig, mux http.Handler) (*http.Server, chan os.S
 		}
 	}()
 
-	quit := make(chan os.Signal)
+	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	return httpServer, quit
