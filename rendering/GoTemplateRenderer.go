@@ -94,6 +94,8 @@ func getFuncs(additionalFuncs template.FuncMap) template.FuncMap {
 		"stringSliceContains": sliceContains[string],
 		"uintSliceContains":   sliceContains[uint],
 		"stringNotEmpty":      stringNotEmpty,
+		"javascriptIncludes":  javascriptIncludes,
+		"stylesheetIncludes":  stylesheetIncludes,
 	}
 
 	if additionalFuncs != nil {
@@ -151,6 +153,78 @@ func stringNotEmpty(s any) bool {
 	}
 
 	return false
+}
+
+func javascriptIncludes(keyName string, data any) template.HTML {
+	var result strings.Builder
+
+	if !templateFuncIsSet(keyName, data) {
+		return ""
+	}
+
+	v := reflect.ValueOf(data)
+
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	if v.Kind() != reflect.Struct {
+		return ""
+	}
+
+	field := v.FieldByName(keyName)
+
+	if !field.IsValid() || field.Kind() != reflect.Slice {
+		return ""
+	}
+
+	for i := 0; i < field.Len(); i++ {
+		include, ok := field.Index(i).Interface().(JavascriptInclude)
+		if !ok {
+			slog.Error("tried to do a javascript include that is the wrong structure")
+			return ""
+		}
+
+		result.WriteString(fmt.Sprintf(`<script type="%s" src="%s"></script>`, include.Type, include.Src))
+	}
+
+	return template.HTML(result.String())
+}
+
+func stylesheetIncludes(keyName string, data any) template.HTML {
+	var result strings.Builder
+
+	if !templateFuncIsSet(keyName, data) {
+		return ""
+	}
+
+	v := reflect.ValueOf(data)
+
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	if v.Kind() != reflect.Struct {
+		return ""
+	}
+
+	field := v.FieldByName(keyName)
+
+	if !field.IsValid() || field.Kind() != reflect.Slice {
+		return ""
+	}
+
+	for i := 0; i < field.Len(); i++ {
+		include, ok := field.Index(i).Interface().(StylesheetInclude)
+		if !ok {
+			slog.Error("tried to do a stylesheet include that is the wrong structure")
+			return ""
+		}
+
+		result.WriteString(fmt.Sprintf(`<link type="text/css" rel="stylesheet" media="%s" href="%s" />`, include.Media, include.Href))
+	}
+
+	return template.HTML(result.String())
 }
 
 func normalizeTemplateDir(templateDir string) string {
