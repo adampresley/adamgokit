@@ -26,10 +26,16 @@ type GoTemplateRenderer struct {
 }
 
 func NewGoTemplateRenderer(config GoTemplateRendererConfig) GoTemplateRenderer {
+	ext := config.TemplateExtension
+
+	if ext == "" {
+		ext = ".tmpl"
+	}
+
 	return GoTemplateRenderer{
 		additionalFuncs:   config.AdditionalFuncs,
 		templateFS:        config.TemplateFS,
-		templateExtension: config.TemplateExtension,
+		templateExtension: ext,
 		templateDir:       config.TemplateDir,
 	}
 }
@@ -83,7 +89,9 @@ func (tr GoTemplateRenderer) Render(templateName, layoutName string, data any, w
 		))
 	}
 
-	if tmpl, err = template.New(templateName+".tmpl").Funcs(templateFuncs).ParseFS(tr.templateFS, templates...); err != nil {
+	normalizedTemplateName := fmt.Sprintf("%s%s", normalizeTemplateName(templateName), normalizeTemplateExt(tr.templateExtension))
+
+	if tmpl, err = template.New(normalizedTemplateName).Funcs(templateFuncs).ParseFS(tr.templateFS, templates...); err != nil {
 		slog.Error("error parsing template", "error", err, "templateName", templateName, "layoutName", layoutName)
 		fmt.Fprintf(w, "error parsing template '%s' (layout '%s'): %s", templateName, layoutName, err.Error())
 		return
