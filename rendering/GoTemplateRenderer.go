@@ -19,102 +19,61 @@ type GoTemplateRendererConfig struct {
 }
 
 type GoTemplateRenderer struct {
-	additionalFuncs   template.FuncMap
+	funcs             template.FuncMap
 	templateDir       string
 	templateExtension string
 	templateFS        fs.FS
+	templates         *template.Template
 }
 
-func NewGoTemplateRenderer(config GoTemplateRendererConfig) GoTemplateRenderer {
+func NewGoTemplateRenderer(config GoTemplateRendererConfig) *GoTemplateRenderer {
 	ext := config.TemplateExtension
 
 	if ext == "" {
-		ext = ".tmpl"
+		ext = ".html"
 	}
 
-	return GoTemplateRenderer{
-		additionalFuncs:   config.AdditionalFuncs,
+	funcs := getFuncs(config.AdditionalFuncs)
+	normalizedTemplatePath := fmt.Sprintf("%s/*%s", normalizeTemplateDir(config.TemplateDir), normalizeTemplateExt(config.TemplateExtension))
+
+	result := &GoTemplateRenderer{
+		funcs:             funcs,
 		templateFS:        config.TemplateFS,
-		templateExtension: ext,
-		templateDir:       config.TemplateDir,
-	}
-}
-
-func (tr GoTemplateRenderer) getFuncs() template.FuncMap {
-	templateFuncs := template.FuncMap{
-		"join":                strings.Join,
-		"isSet":               templateFuncIsSet,
-		"isLastItem":          tr.isLastItem,
-		"containsString":      containsString,
-		"stringSliceContains": sliceContains[string],
-		"uintSliceContains":   sliceContains[uint],
-		"stringNotEmpty":      stringNotEmpty,
+		templateExtension: normalizeTemplateExt(ext),
+		templateDir:       normalizeTemplateDir(config.TemplateDir),
+		templates:         template.Must(template.New("").Funcs(funcs).ParseFS(config.TemplateFS, normalizedTemplatePath)),
 	}
 
-	if tr.additionalFuncs != nil {
-		for k, v := range tr.additionalFuncs {
-			templateFuncs[k] = v
-		}
-	}
-
-	return templateFuncs
+	return result
 }
 
 /*
 Render renders a Go template file into a layout template file using the provided
 data to an io.Writer.
 */
-func (tr GoTemplateRenderer) Render(templateName, layoutName string, data any, w io.Writer) {
-	var (
-		err  error
-		tmpl *template.Template
-	)
+func (tr *GoTemplateRenderer) Render(templateName string, data any, w io.Writer) {
+	normalizedTemplateName := fmt.Sprintf("%s%s", normalizeTemplateName(templateName), tr.templateExtension)
+	templateNameAndDir := fmt.Sprintf("%s/%s", tr.templateDir, normalizedTemplateName)
 
-	templateFuncs := tr.getFuncs()
-	templates := []string{
-		fmt.Sprintf(
-			"%s/%s%s",
-			normalizeTemplateDir(tr.templateDir),
-			normalizeTemplateName(templateName),
-			normalizeTemplateExt(tr.templateExtension),
-		),
-	}
+	tmpl := template.Must(tr.templates.Clone())
+	tmpl = template.Must(tmpl.ParseFS(tr.templateFS, templateNameAndDir))
 
-	if layoutName != "" {
-		templates = append(templates, fmt.Sprintf(
-			"%s/%s%s",
-			normalizeTemplateDir(tr.templateDir),
-			normalizeTemplateName(layoutName),
-			normalizeTemplateExt(tr.templateExtension),
-		))
-	}
-
-	normalizedTemplateName := fmt.Sprintf("%s%s", normalizeTemplateName(templateName), normalizeTemplateExt(tr.templateExtension))
-
-	if tmpl, err = template.New(normalizedTemplateName).Funcs(templateFuncs).ParseFS(tr.templateFS, templates...); err != nil {
-		slog.Error("error parsing template", "error", err, "templateName", templateName, "layoutName", layoutName)
-		fmt.Fprintf(w, "error parsing template '%s' (layout '%s'): %s", templateName, layoutName, err.Error())
-		return
-	}
-
-	if err = tmpl.Execute(w, data); err != nil {
-		slog.Error("error executing template", "error", err, "templateName", templateName, "layoutName", layoutName)
-		fmt.Fprintf(w, "error executing template '%s' (layout '%s'): %s", templateName, layoutName, err.Error())
+	if err := tmpl.ExecuteTemplate(w, normalizedTemplateName, data); err != nil {
+		slog.Error("error executing template", "error", err, "templateName", normalizedTemplateName)
+		fmt.Fprintf(w, "error executing template '%s': %s", templateName, err.Error())
 	}
 }
 
 /*
 RenderString renders a Go template string with a set of data to an io.Writer.
 */
-func (tr GoTemplateRenderer) RenderString(templateString string, data any, w io.Writer) {
+func (tr *GoTemplateRenderer) RenderString(templateString string, data any, w io.Writer) {
 	var (
 		err  error
 		tmpl *template.Template
 	)
 
-	templateFuncs := tr.getFuncs()
-
-	if tmpl, err = template.New("raw").Funcs(templateFuncs).Parse(templateString); err != nil {
+	if tmpl, err = template.New("raw").Funcs(tr.funcs).Parse(templateString); err != nil {
 		slog.Error("error parsing template", "error", err)
 		fmt.Fprintf(w, "error parsing template: %s", err.Error())
 		return
@@ -124,6 +83,26 @@ func (tr GoTemplateRenderer) RenderString(templateString string, data any, w io.
 		slog.Error("error executing template", "error", err)
 		fmt.Fprintf(w, "error executing template: %s", err.Error())
 	}
+}
+
+func getFuncs(additionalFuncs template.FuncMap) template.FuncMap {
+	templateFuncs := template.FuncMap{
+		"join":                strings.Join,
+		"isSet":               templateFuncIsSet,
+		"isLastItem":          isLastItem,
+		"containsString":      containsString,
+		"stringSliceContains": sliceContains[string],
+		"uintSliceContains":   sliceContains[uint],
+		"stringNotEmpty":      stringNotEmpty,
+	}
+
+	if additionalFuncs != nil {
+		for k, v := range additionalFuncs {
+			templateFuncs[k] = v
+		}
+	}
+
+	return templateFuncs
 }
 
 func templateFuncIsSet(name string, data any) bool {
@@ -144,7 +123,7 @@ func sliceContains[T comparable](array []T, value T) bool {
 	return slices.Index(array, value) > -1
 }
 
-func (tr GoTemplateRenderer) isLastItem(index, length int) bool {
+func isLastItem(index, length int) bool {
 	return index == length-1
 }
 
