@@ -7,6 +7,19 @@ import (
 )
 
 /*
+WriteHtml writes content to the response write with a text/html header.
+*/
+func WriteHtml(w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Content-Type", "text/html")
+
+	if status > 299 {
+		w.WriteHeader(status)
+	}
+
+	_, _ = fmt.Fprintf(w, "%v", value)
+}
+
+/*
 WriteJson writes JSON content to the response writer.
 */
 func WriteJson(w http.ResponseWriter, status int, value any) {
@@ -36,6 +49,13 @@ func WriteJson(w http.ResponseWriter, status int, value any) {
 	}
 
 	_, _ = fmt.Fprintf(w, "%s", string(b))
+}
+
+/*
+HtmlOK is a convenience wrapper to send a 200 with an arbitrary HTML body
+*/
+func HtmlOK(w http.ResponseWriter, value any) {
+	WriteHtml(w, http.StatusOK, value)
 }
 
 /*
