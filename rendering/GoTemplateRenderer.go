@@ -87,7 +87,7 @@ func (tr *GoTemplateRenderer) RenderString(templateString string, data any, w io
 
 func getFuncs(additionalFuncs template.FuncMap) template.FuncMap {
 	templateFuncs := template.FuncMap{
-		"join":                strings.Join,
+		"join":                join,
 		"isSet":               templateFuncIsSet,
 		"isLastItem":          isLastItem,
 		"containsString":      containsString,
@@ -225,6 +225,20 @@ func stylesheetIncludes(keyName string, data any) template.HTML {
 	}
 
 	return template.HTML(result.String())
+}
+
+func join(s []any, sep string) string {
+	result := strings.Builder{}
+
+	for i, item := range s {
+		result.WriteString(fmt.Sprintf("%v", item))
+
+		if i < len(s) {
+			result.WriteString(sep)
+		}
+	}
+
+	return result.String()
 }
 
 func normalizeTemplateDir(templateDir string) string {
