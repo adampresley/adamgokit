@@ -227,13 +227,24 @@ func stylesheetIncludes(keyName string, data any) template.HTML {
 	return template.HTML(result.String())
 }
 
-func join(s []any, sep string) string {
-	result := strings.Builder{}
+func join(s any, sep string) string {
+	v := reflect.ValueOf(s)
 
-	for i, item := range s {
-		result.WriteString(fmt.Sprintf("%v", item))
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
 
-		if i < len(s) {
+	if v.Kind() != reflect.Slice {
+		return ""
+	}
+
+	var result strings.Builder
+	length := v.Len()
+
+	for i := 0; i < length; i++ {
+		result.WriteString(fmt.Sprintf("%v", v.Index(i).Interface()))
+
+		if i < length-1 {
 			result.WriteString(sep)
 		}
 	}
