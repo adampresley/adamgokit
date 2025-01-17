@@ -23,15 +23,16 @@ type Route struct {
 }
 
 type RouterConfig struct {
-	Address             string
-	AuthConfig          *auth.AuthMiddlewareConfig
-	Debug               bool
-	HttpIdleTimeout     int
-	HttpReadTimeout     int
-	HttpWriteTimeout    int
-	ServeStaticContent  bool
-	StaticContentPrefix string
-	StaticFS            fs.FS
+	Address              string
+	AuthConfig           *auth.AuthMiddlewareConfig
+	Debug                bool
+	HttpIdleTimeout      int
+	HttpReadTimeout      int
+	HttpWriteTimeout     int
+	ServeStaticContent   bool
+	StaticContentRootDir string
+	StaticContentPrefix  string
+	StaticFS             fs.FS
 }
 
 func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
@@ -45,6 +46,10 @@ func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
 	 */
 	if config.Address == "" {
 		panic("router address cannot be blank.")
+	}
+
+	if config.StaticContentRootDir == "" {
+		config.StaticContentRootDir = "app"
 	}
 
 	if config.StaticContentPrefix == "" {
@@ -151,10 +156,10 @@ func Shutdown(httpServer *http.Server) {
 
 func getStaticFileSystem(config *RouterConfig) http.FileSystem {
 	if config.Debug {
-		return http.FS(os.DirFS("app"))
+		return http.FS(os.DirFS(config.StaticContentRootDir))
 	}
 
-	fsys, err := fs.Sub(config.StaticFS, "app")
+	fsys, err := fs.Sub(config.StaticFS, config.StaticContentRootDir)
 
 	if err != nil {
 		slog.Error("error loading static asset filesystem", slog.Any("error", err))
