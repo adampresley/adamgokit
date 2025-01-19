@@ -17,6 +17,7 @@ type Session[T any] interface {
 	GetStore() gorillasessions.Store
 	Save(w http.ResponseWriter, r *http.Request) error
 	Set(r *http.Request, value T) error
+	Destroy(w http.ResponseWriter, r *http.Request) error
 }
 
 type SessionWrapper[T any] struct {
@@ -85,4 +86,20 @@ func (sw SessionWrapper[T]) Set(r *http.Request, value T) error {
 
 	session.Values[sw.KeyName] = value
 	return nil
+}
+
+func (sw SessionWrapper[T]) Destroy(w http.ResponseWriter, r *http.Request) error {
+	var (
+		err     error
+		session *gorillasessions.Session
+	)
+
+	if session, err = sw.GetSession(r); err != nil {
+		return fmt.Errorf("could not get session in Destroy: %w", err)
+	}
+
+	session.Options.MaxAge = -1
+	session.Values[sw.KeyName] = new(T)
+
+	return session.Save(r, w)
 }
