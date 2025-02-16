@@ -6,6 +6,8 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -34,14 +36,52 @@ func NewGoTemplateRenderer(config GoTemplateRendererConfig) *GoTemplateRenderer 
 	}
 
 	funcs := getFuncs(config.AdditionalFuncs)
-	normalizedTemplatePath := fmt.Sprintf("%s/*%s", normalizeTemplateDir(config.TemplateDir), normalizeTemplateExt(config.TemplateExtension))
+	tmpl := template.New("").Funcs(funcs)
+
+	err := fs.WalkDir(config.TemplateFS, config.TemplateDir, func(path string, d fs.DirEntry, err error) error {
+		var (
+			relativePath string
+			content      []byte
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() || !strings.HasSuffix(path, normalizeTemplateExt(ext)) {
+			return nil
+		}
+
+		if relativePath, err = filepath.Rel(config.TemplateDir, path); err != nil {
+			return err
+		}
+
+		templateName := strings.TrimSuffix(relativePath, ext)
+
+		if content, err = fs.ReadFile(config.TemplateFS, path); err != nil {
+			return err
+		}
+
+		if _, err = tmpl.New(templateName).Parse(string(content)); err != nil {
+			return fmt.Errorf("error parsing template '%s': %w", templateName, err)
+		}
+
+		slog.Debug("parsed template", "templateName", templateName)
+
+		return nil
+	})
+
+	if err != nil {
+		slog.Error("error parsing templates. shutting down.", "error", err, "templateDir", config.TemplateDir, "ext", ext)
+		os.Exit(1)
+	}
 
 	result := &GoTemplateRenderer{
 		funcs:             funcs,
 		templateFS:        config.TemplateFS,
 		templateExtension: normalizeTemplateExt(ext),
 		templateDir:       normalizeTemplateDir(config.TemplateDir),
-		templates:         template.Must(template.New("").Funcs(funcs).ParseFS(config.TemplateFS, normalizedTemplatePath)),
+		templates:         tmpl,
 	}
 
 	return result
@@ -52,14 +92,8 @@ Render renders a Go template file into a layout template file using the provided
 data to an io.Writer.
 */
 func (tr *GoTemplateRenderer) Render(templateName string, data any, w io.Writer) {
-	normalizedTemplateName := fmt.Sprintf("%s%s", normalizeTemplateName(templateName), tr.templateExtension)
-	templateNameAndDir := fmt.Sprintf("%s/%s", tr.templateDir, normalizedTemplateName)
-
-	tmpl := template.Must(tr.templates.Clone())
-	tmpl = template.Must(tmpl.ParseFS(tr.templateFS, templateNameAndDir))
-
-	if err := tmpl.ExecuteTemplate(w, normalizedTemplateName, data); err != nil {
-		slog.Error("error executing template", "error", err, "templateName", normalizedTemplateName)
+	if err := tr.templates.ExecuteTemplate(w, templateName, data); err != nil {
+		slog.Error("error executing template", "error", err, "templateName", templateName)
 		fmt.Fprintf(w, "error executing template '%s': %s", templateName, err.Error())
 	}
 }
