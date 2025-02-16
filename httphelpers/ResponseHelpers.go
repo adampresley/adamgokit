@@ -6,17 +6,21 @@ import (
 	"net/http"
 )
 
-/*
-WriteHtml writes content to the response write with a text/html header.
-*/
-func WriteHtml(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "text/html")
+func writePlain(w http.ResponseWriter, contentType string, status int, value any) {
+	w.Header().Set("Content-Type", contentType)
 
 	if status > 299 {
 		w.WriteHeader(status)
 	}
 
 	_, _ = fmt.Fprintf(w, "%v", value)
+}
+
+/*
+WriteHtml writes content to the response write with a text/html header.
+*/
+func WriteHtml(w http.ResponseWriter, status int, value any) {
+	writePlain(w, "text/html", status, value)
 }
 
 /*
@@ -49,6 +53,13 @@ func WriteJson(w http.ResponseWriter, status int, value any) {
 	}
 
 	_, _ = fmt.Fprintf(w, "%s", string(b))
+}
+
+/*
+WriteText writes content to the response writer with a text/plain header.
+*/
+func WriteText(w http.ResponseWriter, status int, value any) {
+	writePlain(w, "text/plain", status, value)
 }
 
 /*
@@ -101,4 +112,36 @@ arbitrary value.
 */
 func JsonUnauthorized(w http.ResponseWriter, value any) {
 	WriteJson(w, http.StatusUnauthorized, value)
+}
+
+/*
+TextOK is a convenience wrapper to send a 200 with an
+arbitrary text body.
+*/
+func TextOK(w http.ResponseWriter, value any) {
+	WriteText(w, http.StatusOK, value)
+}
+
+/*
+TextBadRequest is a convenience wrapper to send a 400 with an
+arbitrary text body.
+*/
+func TextBadRequest(w http.ResponseWriter, value any) {
+	WriteText(w, http.StatusBadRequest, value)
+}
+
+/*
+TextBadRequest is a convenience wrapper to send a 500 with an
+arbitrary text body.
+*/
+func TextInternalServerError(w http.ResponseWriter, value any) {
+	WriteText(w, http.StatusInternalServerError, value)
+}
+
+/*
+TextBadRequest is a convenience wrapper to send a 401 with an
+arbitrary text body.
+*/
+func TextUnauthorized(w http.ResponseWriter, value any) {
+	WriteText(w, http.StatusUnauthorized, value)
 }
