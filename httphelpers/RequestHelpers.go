@@ -140,6 +140,28 @@ func GetFromRequest[T RequestTypes](r *http.Request, name string) T {
 }
 
 /*
+GetAuthorizationBearer returns the token portion of a Bearer authorization header.
+If the header is missing or malformed, an error is returned.
+*/
+func GetAuthorizationBearer(r *http.Request) (string, error) {
+	authHeader := r.Header.Get("Authorization")
+	parts := strings.Split(authHeader, ":")
+
+	if len(parts) < 2 {
+		return "", fmt.Errorf("invalid authorization header")
+	}
+
+	bearerPart := strings.TrimSpace(parts[1])
+	bearerParts := strings.Split(bearerPart, " ")
+
+	if len(bearerParts) < 2 {
+		return "", fmt.Errorf("invalid bearer authorization header")
+	}
+
+	return strings.TrimSpace(bearerParts[1]), nil
+}
+
+/*
 GetStringListFromRequest returns a string slice from a delimited string on
 form or query param.
 */
