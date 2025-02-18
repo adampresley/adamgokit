@@ -18,6 +18,7 @@ type GoTemplateRendererConfig struct {
 	TemplateDir       string
 	TemplateExtension string
 	TemplateFS        fs.FS
+	LayoutsDir        string
 }
 
 type GoTemplateRenderer struct {
@@ -25,10 +26,16 @@ type GoTemplateRenderer struct {
 	templateDir       string
 	templateExtension string
 	templateFS        fs.FS
-	templates         *template.Template
+	layoutsDir        string
+
+	templates map[string]*template.Template
 }
 
 func NewGoTemplateRenderer(config GoTemplateRendererConfig) *GoTemplateRenderer {
+	var (
+		err error
+	)
+
 	ext := config.TemplateExtension
 
 	if ext == "" {
@@ -37,8 +44,12 @@ func NewGoTemplateRenderer(config GoTemplateRendererConfig) *GoTemplateRenderer 
 
 	funcs := getFuncs(config.AdditionalFuncs)
 	tmpl := template.New("").Funcs(funcs)
+	templates := map[string]*template.Template{}
 
-	err := fs.WalkDir(config.TemplateFS, config.TemplateDir, func(path string, d fs.DirEntry, err error) error {
+	/*
+	 * Process layouts first
+	 */
+	err = fs.WalkDir(config.TemplateFS, filepath.Join(config.TemplateDir, config.LayoutsDir), func(path string, d fs.DirEntry, err error) error {
 		var (
 			relativePath string
 			content      []byte
@@ -62,11 +73,49 @@ func NewGoTemplateRenderer(config GoTemplateRendererConfig) *GoTemplateRenderer 
 			return err
 		}
 
-		if _, err = tmpl.New(templateName).Parse(string(content)); err != nil {
-			return fmt.Errorf("error parsing template '%s': %w", templateName, err)
+		template.Must(tmpl.New(templateName).Parse(string(content)))
+		slog.Debug("parsed layout", "templateName", templateName, "path", path)
+		return nil
+	})
+
+	if err != nil {
+		slog.Error("error parsing layouts. shutting down.", "error", err, "templateDir", config.TemplateDir, "ext", ext)
+		os.Exit(1)
+	}
+
+	err = fs.WalkDir(config.TemplateFS, config.TemplateDir, func(path string, d fs.DirEntry, err error) error {
+		var (
+			relativePath string
+			content      []byte
+			tt           *template.Template
+		)
+
+		if err != nil {
+			return err
 		}
 
-		slog.Debug("parsed template", "templateName", templateName)
+		if d.IsDir() || !strings.HasSuffix(path, normalizeTemplateExt(ext)) {
+			return nil
+		}
+
+		// Don't re-parse layouts
+		if strings.HasPrefix(path, filepath.Join(config.TemplateDir, config.LayoutsDir)) {
+			return nil
+		}
+
+		if relativePath, err = filepath.Rel(config.TemplateDir, path); err != nil {
+			return err
+		}
+
+		templateName := strings.TrimSuffix(relativePath, ext)
+
+		if content, err = fs.ReadFile(config.TemplateFS, path); err != nil {
+			return err
+		}
+
+		tt = template.Must(template.Must(tmpl.Clone()).New(templateName).Parse(string(content)))
+		templates[templateName] = tt
+		slog.Debug("parsed template", "templateName", templateName, "path", path)
 
 		return nil
 	})
@@ -81,7 +130,8 @@ func NewGoTemplateRenderer(config GoTemplateRendererConfig) *GoTemplateRenderer 
 		templateFS:        config.TemplateFS,
 		templateExtension: normalizeTemplateExt(ext),
 		templateDir:       normalizeTemplateDir(config.TemplateDir),
-		templates:         tmpl,
+		layoutsDir:        config.LayoutsDir,
+		templates:         templates,
 	}
 
 	return result
@@ -92,9 +142,22 @@ Render renders a Go template file into a layout template file using the provided
 data to an io.Writer.
 */
 func (tr *GoTemplateRenderer) Render(templateName string, data any, w io.Writer) {
-	if err := tr.templates.ExecuteTemplate(w, templateName, data); err != nil {
+	var (
+		err error
+		t   *template.Template
+		ok  bool
+	)
+
+	if t, ok = tr.templates[templateName]; !ok {
+		slog.Error("cannot find template", "error", err, "templateName", templateName)
+		fmt.Fprintf(w, "cannot find template '%s'", templateName)
+		return
+	}
+
+	if err = t.ExecuteTemplate(w, templateName, data); err != nil {
 		slog.Error("error executing template", "error", err, "templateName", templateName)
-		fmt.Fprintf(w, "error executing template '%s': %s", templateName, err.Error())
+		fmt.Fprintf(w, "cannot execute template '%s': %s", templateName, err.Error())
+		return
 	}
 }
 

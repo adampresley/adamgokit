@@ -10,8 +10,70 @@ particularly useful for rendering web applications. Here is a basic example
 that uses this component for rendering an HTTP route. This example makes
 a few assumtions:
 
-- You have a directory named "templates" in the root of your application
-- You have the files _layout.tmpl_ and _index.tmpl_
+- You have a directory named "app" in the root of your application
+- You have the files _layouts/layout.html_ and _pages/index.html_
+
+Here are the layout and index pages respectively.
+
+```html
+{{- define "layouts/layout"}}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+   <meta name="color-scheme" content="light dark" />
+   <title>{{template "title" .}}</title>
+   <link type="text/css" rel="stylesheet" media="screen" href="/static/css/pico.min.css" />
+   {{stylesheetIncludes "Stylesheets" .}}
+</head>
+
+<body>
+   <header class="grid top-header">
+      <nav>
+         <ul>
+            <li>
+               <h1><a href="/">My App</a></h1>
+            </li>
+         </ul>
+
+         <ul>
+            <li>
+               <a href="/logout">Log Out</a>
+            </li>
+         </ul>
+      </nav>
+   </header>
+   <!-- END NAV -->
+
+   <main class="container">
+      {{template "content" .}}
+   </main>
+
+   <footer id="page-footer">
+      <p>&copy; Mine!</p>
+   </footer>
+
+   {{javascriptIncludes "JavascriptIncludes" .}}
+</body>
+
+</html>
+{{end}}
+```
+
+```html
+{{template "layouts/layout" .}}
+{{define "title"}}Home{{end}}
+{{define "content"}}
+
+<h2>Home Page</h2>
+<p>
+	This is a sample home page.
+</p>
+
+{{end}}
+```
 
 ```go
 import (
@@ -23,17 +85,18 @@ import (
 )
 
 var (
-  //go:embed templates/*
-  templateFS embed.FS
+  //go:embed app
+  appFS embed.FS
 
   renderer rendering.TemplateRenderer
 )
 
 func main() {
   renderer = rendering.NewGoTemplateRenderer(rendering.GoTemplateRendererConfig{
-    TemplateDir:       "templates",
-    TemplateExtension: ".tmpl",
-    TemplateFS:        templateFS,
+    TemplateDir:       "app",
+    LayoutsDir:        "layouts",
+    TemplateExtension: ".html",
+    TemplateFS:        appFS,
   })
 
   routes := []mux.Route{
@@ -58,7 +121,7 @@ func getIndex(w http.ResponseWriter, r *http.Request) {
     Title: "Hello!",
   }
 
-  renderer.Render("index", "layout", viewData, w)
+  renderer.Render("index", viewData, w)
 }
 ```
 
@@ -67,6 +130,7 @@ func getIndex(w http.ResponseWriter, r *http.Request) {
 The basic requirements of configuring the Go template renderer are:
 
 - Template directory - The directory where Go template files live
+- Layout directory - The subdirectory (under template directory) where layouts live
 - Template extension - The extension for Go template files
 - Template filesystem - A filesystem reference for Go template files
 
@@ -90,9 +154,10 @@ moreFuncs := template.FuncMap{
 }
 
 renderer = rendering.NewGoTemplateRenderer(rendering.GoTemplateRendererConfig{
-  AdditionalFunc: moreFuncs,
-  TemplateDir:       "templates",
-  TemplateExtension: ".tmpl",
-  TemplateFS:        templateFS,
+  AdditionalFunc:    moreFuncs,
+  TemplateDir:       "app",
+  LayoutsDir:        "layouts",
+  TemplateExtension: ".html",
+  TemplateFS:        appFS,
 })
 ```
