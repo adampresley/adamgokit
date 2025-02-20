@@ -68,6 +68,7 @@ func main() {
 	routes := []mux.Route{
 		{Path: "GET /heartbeat", Handler: http.HandlerFunc(heartbeat)},
 		{Path: "GET /", Handler: http.HandlerFunc(homeController.HomePage)},
+		{Path: "GET /about", Handler: http.HandlerFunc(homeController.AboutPage)},
 	}
 
 	routerConfig := mux.RouterConfig{
