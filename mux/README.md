@@ -9,7 +9,7 @@ Here is a short, basic example.
 
 ```go
 handler := func(w http.ResponseWriter, r *http.Request) {
-  _, _ = fmt.Fprintf(w, "Hello %s", r.FormValue("name"))
+  httphelpers.TextOK(w, fmt.Sprintf("Hello %s", httphelpers.GetFromRequest[string](r, "name")))
 }
 
 routes := []mux.Route{
