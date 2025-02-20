@@ -11,6 +11,7 @@ import (
 
 type HomeControllerInterface interface {
 	HomePage(w http.ResponseWriter, r *http.Request)
+	AboutPage(w http.ResponseWriter, r *http.Request)
 }
 
 type HomeControllerConfig struct {
