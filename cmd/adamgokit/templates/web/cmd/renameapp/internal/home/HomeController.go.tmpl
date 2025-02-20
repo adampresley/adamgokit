@@ -1,0 +1,38 @@
+package home
+
+import (
+	"net/http"
+
+	"github.com/adampresley/adamgokit/rendering"
+	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/configuration"
+	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/viewmodels"
+)
+
+type HomeControllerInterface interface {
+	HomePage(w http.ResponseWriter, r *http.Request)
+}
+
+type HomeControllerConfig struct {
+	Config   *configuration.Config
+	Renderer rendering.TemplateRenderer
+}
+
+type HomeController struct {
+	config   *configuration.Config
+	renderer rendering.TemplateRenderer
+}
+
+func NewHomeController(config HomeControllerConfig) HomeController {
+	return HomeController{
+		config:   config.Config,
+		renderer: config.Renderer,
+	}
+}
+
+func (c HomeController) HomePage(w http.ResponseWriter, r *http.Request) {
+	viewData := viewmodels.HomePage{
+		JavascriptIncludes: []rendering.JavascriptInclude{},
+	}
+
+	c.renderer.Render("pages/home", viewData, w)
+}

@@ -1,0 +1,14 @@
+package configuration
+
+import "github.com/app-nerds/configinator"
+
+type Config struct {
+	LogLevel string `flag:"loglevel" env:"LOG_LEVEL" default:"debug" description:"The log level to use. Valid values are 'debug', 'info', 'warn', and 'error'"`
+}
+
+func LoadConfig() Config {
+	config := Config{}
+	configinator.Behold(&config)
+	return config
+}
+

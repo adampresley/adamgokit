@@ -1,0 +1,36 @@
+package main
+
+import (
+	"log/slog"
+
+	"github.com/adampresley/adamgokit/waiter"
+	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/configuration"
+	{{- if .HasDB}}
+	"gorm.io/gorm"
+	{{end}}
+)
+
+var (
+	Version     string = "development"
+	appName     string = "{{.AppName}}"
+)
+
+func main() {
+	config := configuration.LoadConfig()
+
+	slog.Info("configuration loaded",
+		slog.String("app", appName),
+		slog.String("version", Version),
+		slog.String("loglevel", config.LogLevel),
+	)
+
+	slog.Debug("setting up...")
+
+	/*
+	 * Wait for graceful shutdown
+	 */
+	slog.Info("started.")
+
+	<-waiter.Wait()
+	slog.Info("stopped.")
+}
