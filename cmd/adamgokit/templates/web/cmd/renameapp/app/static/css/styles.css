@@ -2,3 +2,18 @@ body>footer,
 body>header {
 	padding: 1rem;
 }
+
+article.error {
+	background-color: #ffebee;
+	color: #b71c1c;
+}
+
+article.success {
+	background-color: #e8f5e9;
+	color: #1b5e20;
+}
+
+article.warning {
+	background-color: #fff8e1;
+	color: #ff6f00;
+}
