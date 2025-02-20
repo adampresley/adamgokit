@@ -176,6 +176,13 @@ func GetStringListFromRequest(r *http.Request, name, seperator string) []string 
 }
 
 /*
+IsHtmx returns true if the request came from the Htmx library.
+*/
+func IsHtmx(r *http.Request) bool {
+	return r.Header.Get("Hx-Request") != ""
+}
+
+/*
 ReadJSONBody reads the body content from an http.Request as JSON data into
 dest.
 */

@@ -40,6 +40,15 @@ inputs := httphelpers.GetStringListFromRequest(r, "input", ",")
 // result is []string{"1", "5", "10"}
 ```
 
+### IsHtmx
+
+**IsHtmx** returns true if the request came from the HTMX library.
+
+```go
+// r is a *http.Request struct
+isHTMX := httphelpers.IsHtmx(r)
+```
+
 ### ReadJSONBody
 
 **ReadJSONBody** reads the body content from an http.Request as JSON data into
