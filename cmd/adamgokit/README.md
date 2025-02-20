@@ -23,3 +23,4 @@ This application is a project generator TUI. Simply run it and answer the questi
 adamgokit
 ```
 
+![Example usage](example.gif)

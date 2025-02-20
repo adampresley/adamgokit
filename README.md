@@ -13,3 +13,7 @@ that I use all the time.
 - [HTTP Sessions](sessions/README.md)
 - [Slices](slices/README.md)
 - [Waiter](waiter/README.md)
+
+## TUI Skeleton App
+
+Interesting in scaffolding a skeleton project using this library? See the [Adam's Go Kit TUI README](./cmd/adamgokit/README.md).
