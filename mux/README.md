@@ -13,7 +13,7 @@ handler := func(w http.ResponseWriter, r *http.Request) {
 }
 
 routes := []mux.Route{
-  {Path: "GET /", Handler: http.HandlerFunc(handler)},
+  {Path: "GET /", HandlerFunc: handler},
 }
 
 routerConfig := mux.RouterConfig{
@@ -45,14 +45,14 @@ for a given verb and path. Here is what that looks like:
 ```go
 mux.Route{
   Path: "GET /about",
-  Handler: http.HandlerFunc(SomeHandlerFunc),
-  Middlewares: []func(http.Handler) http.Handler{
+  HandlerFunc: http.HandlerFunc(SomeHandlerFunc),
+  Middlewares: []mux.MiddlewareFunc{
     SomeMiddlewareFunc,
   }
 }
 ```
 
-_Handler_ and _Path_ are the only fields required. _Middlewares_ is optional.
+_HandlerFunc_ (or _Handler_) and _Path_ are the only fields required. _Middlewares_ is optional.
 
 ## Middlewares
 

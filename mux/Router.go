@@ -16,10 +16,40 @@ import (
 	"github.com/rs/cors"
 )
 
+/*
+Defines a type for a middleware function. It must look like: `func(http.Handler) http.Handler {}`.
+Here is an example:
+
+	func logMiddleware(next http.Handler) http.Handler {
+	   return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	      slog.Info("running path", "path", r.URL.Path)
+	      next.ServeHTTP(w, r)
+	   })
+	}
+*/
+type MiddlewareFunc func(http.Handler) http.Handler
+
+/*
+A Route defines a single handler for a single endpoint. You have a choice
+of using the http.Handler interface or the direct http.HandlerFunc. You
+may also provide an optional slice of middlewares that will be automatically
+wrapped around your handler.
+
+For example, using http.HandlerFunc might look like:
+
+	func homePage(w http.ResponseWriter, r *http.Request) {
+	  fmt.Fprintf(w, "This is a test")
+	}
+
+	routes := []mux.Route{
+	  {Path: "GET /", HandlerFunc: homePage},
+	}
+*/
 type Route struct {
 	Path        string
 	Handler     http.Handler
-	Middlewares []func(http.Handler) http.Handler
+	HandlerFunc http.HandlerFunc
+	Middlewares []MiddlewareFunc
 }
 
 type RouterConfig struct {
@@ -87,7 +117,15 @@ func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
 	}
 
 	for _, route := range routes {
-		handler := route.Handler
+		var handler http.Handler
+
+		if route.HandlerFunc != nil {
+			handler = http.HandlerFunc(route.HandlerFunc)
+		}
+
+		if route.Handler != nil {
+			handler = route.Handler
+		}
 
 		/*
 		 * If we have an auth configuration, and the path isn't excluded,
@@ -107,12 +145,13 @@ func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
 				handler = config.AuthConfig.Middleware(handler)
 			}
 
-			/*
-			 * Wrap in any additional configured middlewares.
-			 */
-			for _, mw := range route.Middlewares {
-				handler = mw(handler)
-			}
+		}
+
+		/*
+		 * Wrap in any additional configured middlewares.
+		 */
+		for _, mw := range route.Middlewares {
+			handler = mw(handler)
 		}
 
 		m.HandleFunc(route.Path, http.HandlerFunc(handler.ServeHTTP))
