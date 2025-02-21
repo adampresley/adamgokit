@@ -66,9 +66,9 @@ func main() {
 	slog.Debug("setting up routes...")
 
 	routes := []mux.Route{
-		{Path: "GET /heartbeat", Handler: http.HandlerFunc(heartbeat)},
-		{Path: "GET /", Handler: http.HandlerFunc(homeController.HomePage)},
-		{Path: "GET /about", Handler: http.HandlerFunc(homeController.AboutPage)},
+		{Path: "GET /heartbeat", HandlerFunc: heartbeat},
+		{Path: "GET /", HandlerFunc: homeController.HomePage},
+		{Path: "GET /about", HandlerFunc: homeController.AboutPage},
 	}
 
 	routerConfig := mux.RouterConfig{
