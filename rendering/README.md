@@ -94,6 +94,7 @@ var (
 func main() {
   renderer = rendering.NewGoTemplateRenderer(rendering.GoTemplateRendererConfig{
     TemplateDir:       "app",
+    ComponentsDir:     "components",
     LayoutsDir:        "layouts",
     TemplateExtension: ".html",
     TemplateFS:        appFS,
@@ -131,6 +132,7 @@ The basic requirements of configuring the Go template renderer are:
 
 - Template directory - The directory where Go template files live
 - Layout directory - The subdirectory (under template directory) where layouts live
+- Components directory - An optional directory (_components_) where reusable, includable components live
 - Template extension - The extension for Go template files
 - Template filesystem - A filesystem reference for Go template files
 
@@ -156,6 +158,7 @@ moreFuncs := template.FuncMap{
 renderer = rendering.NewGoTemplateRenderer(rendering.GoTemplateRendererConfig{
   AdditionalFunc:    moreFuncs,
   TemplateDir:       "app",
+  ComponentsDir:     "components",
   LayoutsDir:        "layouts",
   TemplateExtension: ".html",
   TemplateFS:        appFS,

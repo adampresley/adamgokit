@@ -18,6 +18,7 @@ type GoTemplateRendererConfig struct {
 	TemplateDir       string
 	TemplateExtension string
 	TemplateFS        fs.FS
+	ComponentsDir     string
 	LayoutsDir        string
 }
 
@@ -26,6 +27,7 @@ type GoTemplateRenderer struct {
 	templateDir       string
 	templateExtension string
 	templateFS        fs.FS
+	componentsDir     string
 	layoutsDir        string
 
 	templates map[string]*template.Template
@@ -47,7 +49,41 @@ func NewGoTemplateRenderer(config GoTemplateRendererConfig) *GoTemplateRenderer 
 	templates := map[string]*template.Template{}
 
 	/*
-	 * Process layouts first
+	 * Process components first
+	 */
+	if config.ComponentsDir != "" {
+		err = fs.WalkDir(config.TemplateFS, filepath.Join(config.TemplateDir, config.ComponentsDir), func(path string, d fs.DirEntry, err error) error {
+			var (
+				relativePath string
+				content      []byte
+			)
+
+			if err != nil {
+				return err
+			}
+
+			if d.IsDir() || !strings.HasSuffix(path, normalizeTemplateExt(ext)) {
+				return nil
+			}
+
+			if relativePath, err = filepath.Rel(config.TemplateDir, path); err != nil {
+				return err
+			}
+
+			templateName := strings.TrimSuffix(relativePath, ext)
+
+			if content, err = fs.ReadFile(config.TemplateFS, path); err != nil {
+				return err
+			}
+
+			template.Must(tmpl.New(templateName).Parse(string(content)))
+			slog.Debug("parsed component", "templateName", templateName, "path", path)
+			return nil
+		})
+	}
+
+	/*
+	 * Process layouts second
 	 */
 	err = fs.WalkDir(config.TemplateFS, filepath.Join(config.TemplateDir, config.LayoutsDir), func(path string, d fs.DirEntry, err error) error {
 		var (
@@ -87,7 +123,7 @@ func NewGoTemplateRenderer(config GoTemplateRendererConfig) *GoTemplateRenderer 
 		var (
 			relativePath string
 			content      []byte
-			tt           *template.Template
+			// tt           *template.Template
 		)
 
 		if err != nil {
@@ -98,11 +134,16 @@ func NewGoTemplateRenderer(config GoTemplateRendererConfig) *GoTemplateRenderer 
 			return nil
 		}
 
-		// Don't re-parse layouts
+		// Don't re-parse layouts or components
 		if strings.HasPrefix(path, filepath.Join(config.TemplateDir, config.LayoutsDir)) {
 			return nil
 		}
 
+		if config.ComponentsDir != "" && strings.HasPrefix(path, filepath.Join(config.TemplateDir, config.ComponentsDir)) {
+			return nil
+		}
+
+		// Do it!
 		if relativePath, err = filepath.Rel(config.TemplateDir, path); err != nil {
 			return err
 		}
@@ -113,8 +154,8 @@ func NewGoTemplateRenderer(config GoTemplateRendererConfig) *GoTemplateRenderer 
 			return err
 		}
 
-		tt = template.Must(template.Must(tmpl.Clone()).New(templateName).Parse(string(content)))
-		templates[templateName] = tt
+		tmpl = template.Must(template.Must(tmpl.Clone()).New(templateName).Parse(string(content)))
+		templates[templateName] = tmpl
 		slog.Debug("parsed template", "templateName", templateName, "path", path)
 
 		return nil
@@ -130,6 +171,7 @@ func NewGoTemplateRenderer(config GoTemplateRendererConfig) *GoTemplateRenderer 
 		templateFS:        config.TemplateFS,
 		templateExtension: normalizeTemplateExt(ext),
 		templateDir:       normalizeTemplateDir(config.TemplateDir),
+		componentsDir:     config.ComponentsDir,
 		layoutsDir:        config.LayoutsDir,
 		templates:         templates,
 	}
