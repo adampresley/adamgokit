@@ -99,7 +99,7 @@ func (sw SessionWrapper[T]) Destroy(w http.ResponseWriter, r *http.Request) erro
 	}
 
 	session.Options.MaxAge = -1
-	session.Values[sw.KeyName] = new(T)
+	delete(session.Values, sw.KeyName)
 
 	return session.Save(r, w)
 }
