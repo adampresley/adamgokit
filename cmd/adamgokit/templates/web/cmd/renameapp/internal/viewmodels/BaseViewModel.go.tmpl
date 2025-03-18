@@ -1,6 +1,13 @@
 package viewmodels
 
+import (
+	"github.com/adampresley/adamgokit/rendering"
+)
+
 type BaseViewModel struct {
-	Message string
-	IsHtmx  bool
+	Message            string
+	IsError            bool
+	IsWarning          bool
+	IsHtmx             bool
+	JavascriptIncludes []rendering.JavascriptInclude
 }

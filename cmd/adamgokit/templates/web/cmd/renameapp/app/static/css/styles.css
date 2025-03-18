@@ -3,6 +3,10 @@ body>header {
 	padding: 1rem;
 }
 
+a {
+	cursor: pointer;
+}
+
 article.error {
 	background-color: #ffebee;
 	color: #b71c1c;
