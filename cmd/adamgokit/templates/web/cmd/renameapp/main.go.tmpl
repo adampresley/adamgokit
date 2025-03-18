@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	Version     string = "development"
-	appName     string = "{{.AppName}}"
+	Version string = "development"
+	appName string = "{{.AppName}}"
 
 	//go:embed app
 	appFS embed.FS
@@ -50,6 +50,7 @@ func main() {
 		TemplateExtension: ".html",
 		TemplateFS:        appFS,
 		LayoutsDir:        "layouts",
+		ComponentsDir:     "components",
 	})
 
 	/*
