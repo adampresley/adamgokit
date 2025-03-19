@@ -204,6 +204,33 @@ func (tr *GoTemplateRenderer) Render(templateName string, data any, w io.Writer)
 }
 
 /*
+Render renders a Go template file into a layout template file using the provided
+data to an io.Writer. This method allows for adding ad-hoc template functions.
+*/
+func (tr *GoTemplateRenderer) RenderWithFuncs(templateName string, data any, funcs template.FuncMap, w io.Writer) {
+	var (
+		err error
+		t   *template.Template
+		ok  bool
+	)
+
+	if t, ok = tr.templates[templateName]; !ok {
+		slog.Error("cannot find template", "error", err, "templateName", templateName)
+		fmt.Fprintf(w, "cannot find template '%s'", templateName)
+		return
+	}
+
+	templateFuncs := getFuncs(funcs)
+	t = t.Funcs(templateFuncs)
+
+	if err = t.ExecuteTemplate(w, templateName, data); err != nil {
+		slog.Error("error executing template", "error", err, "templateName", templateName)
+		fmt.Fprintf(w, "cannot execute template '%s': %s", templateName, err.Error())
+		return
+	}
+}
+
+/*
 RenderString renders a Go template string with a set of data to an io.Writer.
 */
 func (tr *GoTemplateRenderer) RenderString(templateString string, data any, w io.Writer) {
