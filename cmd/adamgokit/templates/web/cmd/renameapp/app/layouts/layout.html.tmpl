@@ -9,6 +9,7 @@
    <title>{{`{{template "title" .}}`}} - {{.AppName}}</title>
    <link type="text/css" rel="stylesheet" media="screen" href="/static/css/pico.min.css" />
    <link type="text/css" rel="stylesheet" media="screen" href="/static/css/styles.css" />
+   <link type="text/css" rel="stylesheet" media="screen" href="/static/css/spinner.min.css" />
    {{`{{stylesheetIncludes "Stylesheets" .}}`}}
 
    <script src="/static/js/htmx.min.js"></script>
@@ -37,6 +38,7 @@
       <p>&copy; YEAR</p>
    </footer>
 
+   <script type="module" src="/static/js/spinner-middleware.js"></script>
    {{`{{javascriptIncludes "JavascriptIncludes" .}}`}}
 </body>
 

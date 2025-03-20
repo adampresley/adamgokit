@@ -9,7 +9,7 @@ import (
 	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/viewmodels"
 )
 
-type HomeControllerInterface interface {
+type HomeHandlers interface {
 	HomePage(w http.ResponseWriter, r *http.Request)
 	AboutPage(w http.ResponseWriter, r *http.Request)
 }
@@ -32,6 +32,8 @@ func NewHomeController(config HomeControllerConfig) HomeController {
 }
 
 func (c HomeController) HomePage(w http.ResponseWriter, r *http.Request) {
+	pageName := "pages/home"
+
 	viewData := viewmodels.HomePage{
 		BaseViewModel: viewmodels.BaseViewModel{
 			Message:            "",
@@ -40,10 +42,12 @@ func (c HomeController) HomePage(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	c.renderer.Render("pages/home", viewData, w)
+	c.renderer.Render(pageName, viewData, w)
 }
 
 func (c HomeController) AboutPage(w http.ResponseWriter, r *http.Request) {
+	pageName := "pages/about"
+
 	viewData := viewmodels.AboutPage{
 		BaseViewModel: viewmodels.BaseViewModel{
 			Message:            "",
@@ -52,5 +56,5 @@ func (c HomeController) AboutPage(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	c.renderer.Render("pages/about", viewData, w)
+	c.renderer.Render(pageName, viewData, w)
 }
