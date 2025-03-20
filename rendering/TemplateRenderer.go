@@ -1,7 +1,6 @@
 package rendering
 
 import (
-	"html/template"
 	"io"
 )
 
@@ -12,11 +11,6 @@ type TemplateRenderer interface {
 	*/
 	Render(templateName string, data any, w io.Writer)
 
-	/*
-		RenderWithFuncs renders a template file using the provided data
-		to an io.Writer with ad-hoc template functions.
-	*/
-	RenderWithFuncs(templateName string, data any, funcs template.FuncMap, w io.Writer)
 	/*
 	   RenderString renders a Go template string with a set of data to an io.Writer.
 	*/
