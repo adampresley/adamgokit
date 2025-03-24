@@ -9,10 +9,10 @@ import (
 	"github.com/adampresley/adamgokit/mux"
 	"github.com/adampresley/adamgokit/rendering"
 	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/configuration"
-	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/home"
-	{{- if .HasDB}}
-	"gorm.io/gorm"
-	{{end}}
+	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/home"{{- if .DBName}}
+	_ "github.com/glebarez/sqlite"
+	"github.com/rfberaldo/sqlz"
+	"github.com/rfberaldo/sqlz/binds"{{end}}
 )
 
 var (
@@ -22,14 +22,19 @@ var (
 	//go:embed app
 	appFS embed.FS
 
-	/* Services */
+	/* Services */{{- if .DBName}}
+	db       *sqlz.DB{{end}}
 	renderer rendering.TemplateRenderer
 
 	/* Controllers */
 	homeController home.HomeHandlers
 )
 
-func main() {
+func main() { {{- if .DBName}}
+	var (
+		err error
+	)
+{{end}}
 	config := configuration.LoadConfig()
 	setupLogger(&config, Version)
 
@@ -40,7 +45,12 @@ func main() {
 		slog.String("host", config.Host),
 	)
 
-	slog.Debug("setting up...")
+	slog.Debug("setting up..."){{- if .DBName}}
+
+	binds.Register("sqlite", binds.BindByDriver("sqlite3"))
+	if db, err = sqlz.Connect("sqlite", config.DSN); err != nil {
+		panic(err)
+	}{{end}}
 
 	/*
 	 * Setup services

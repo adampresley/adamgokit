@@ -2,7 +2,8 @@ package configuration
 
 import "github.com/app-nerds/configinator"
 
-type Config struct {
+type Config struct { {{- if .DBName}}
+	DSN      string `flag:"dsn" env:"DSN" default:"file:./data/{{.AppName}}.db" description:"Database connection"`{{end}}
 	LogLevel string `flag:"loglevel" env:"LOG_LEVEL" default:"debug" description:"The log level to use. Valid values are 'debug', 'info', 'warn', and 'error'"`
 	Host     string `flag:"host" env:"HOST" default:"localhost:8080" description:"The address and port to bind the HTTP server to"`
 }

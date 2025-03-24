@@ -16,7 +16,7 @@ type RenderConfig struct {
 	GoVersion  string
 	DirName    string
 	GithubRepo string
-	HasDB      bool
+	DBName     string
 }
 
 func renderTemplates(config *RenderConfig) error {

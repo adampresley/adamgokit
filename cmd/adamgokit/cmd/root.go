@@ -25,6 +25,7 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/pterm/pterm"
@@ -50,6 +51,8 @@ It provides flags for additional add-ons, like CSS and JS frameworks.`,
 			appName          string
 			githubPath       string
 			selectedTemplate string
+			wantDB           bool
+			dbName           string
 		)
 
 		appTemplateOptions := []string{
@@ -69,6 +72,14 @@ It provides flags for additional add-ons, like CSS and JS frameworks.`,
 		pterm.Printf("\nChoose application template:\n")
 		selectedTemplate, _ = pterm.DefaultInteractiveSelect.WithOptions(appTemplateOptions).Show()
 
+		if selectedTemplate == "Web" {
+			wantDB, _ = pterm.DefaultInteractiveConfirm.Show("\nDo you want to use a database?\n")
+
+			if wantDB {
+				dbName = "sqlite"
+			}
+		}
+
 		pterm.Printf("\nCreating '%s' app '%s' with repository '%s'...\n", selectedTemplate, appName, githubPath)
 
 		config := &RenderConfig{
@@ -77,6 +88,7 @@ It provides flags for additional add-ons, like CSS and JS frameworks.`,
 			Base:       fmt.Sprintf("templates/%s", strings.ToLower(selectedTemplate)),
 			DirName:    appName,
 			GithubRepo: githubPath,
+			DBName:     dbName,
 		}
 
 		if err = buildApp(config); err != nil {
@@ -99,9 +111,11 @@ func buildApp(config *RenderConfig) error {
 		return fmt.Errorf("error renaming cmd app folder '%s': %w", config.DirName, err)
 	}
 
-	// if err = goModInit(config); err != nil {
-	// 	return fmt.Errorf("error initializing app: %w", err)
-	// }
+	if config.DBName != "" {
+		if err = os.MkdirAll(filepath.Join("./", config.DirName, "cmd", config.DirName, "data"), 0755); err != nil {
+			return fmt.Errorf("error making data directory: %w", err)
+		}
+	}
 
 	if err = goModTidy(config); err != nil {
 		return fmt.Errorf("error downloading dependencies: %w", err)
