@@ -2,6 +2,7 @@ package mux
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/adampresley/adamgokit/auth"
 	"github.com/rs/cors"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 /*
@@ -52,6 +54,11 @@ type Route struct {
 	Middlewares []MiddlewareFunc
 }
 
+type LetsEncryptConfig struct {
+	CertPath string
+	Domain   string
+}
+
 type RouterConfig struct {
 	Address              string
 	AuthConfig           *auth.AuthMiddlewareConfig
@@ -63,6 +70,7 @@ type RouterConfig struct {
 	StaticContentRootDir string
 	StaticContentPrefix  string
 	StaticFS             fs.FS
+	LetsEncryptConfig    *LetsEncryptConfig
 }
 
 func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
