@@ -195,9 +195,11 @@ func SetupServer(config RouterConfig, mux http.Handler) (*http.Server, chan os.S
 			Handler: certManager.HTTPHandler(nil),
 		}
 
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			panic(fmt.Sprintf("error starting HTTP server on port 80: %v", err))
-		}
+		go func() {
+			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				panic(fmt.Sprintf("error starting HTTP server on port 80: %v", err))
+			}
+		}()
 
 		server = &http.Server{
 			Addr:         config.Address,
