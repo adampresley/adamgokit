@@ -239,7 +239,7 @@ func SetupServer(config RouterConfig, mux http.Handler) (*http.Server, chan os.S
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	return httpServer, quit
+	return server, quit
 }
 
 func Shutdown(httpServer *http.Server) {
