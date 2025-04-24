@@ -169,17 +169,66 @@ func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
 }
 
 func SetupServer(config RouterConfig, mux http.Handler) (*http.Server, chan os.Signal) {
-	httpServer := &http.Server{
-		Addr:         config.Address,
-		WriteTimeout: time.Second * time.Duration(config.HttpWriteTimeout),
-		ReadTimeout:  time.Second * time.Duration(config.HttpReadTimeout),
-		IdleTimeout:  time.Second * time.Duration(config.HttpIdleTimeout),
-		Handler:      cors.Default().Handler(mux),
+	var (
+		tlsConfig   *tls.Config
+		certManager autocert.Manager
+		server      *http.Server
+	)
+
+	if config.LetsEncryptConfig != nil {
+		certManager = autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			Cache:      autocert.DirCache(config.LetsEncryptConfig.CertPath),
+			HostPolicy: autocert.HostWhitelist(config.LetsEncryptConfig.Domain),
+		}
+
+		// Create a TLS config using the autocert manager
+		tlsConfig = &tls.Config{
+			GetCertificate: certManager.GetCertificate,
+			NextProtos:     []string{"h2", "http/1.1"},
+		}
+	}
+
+	if config.LetsEncryptConfig != nil {
+		httpServer := &http.Server{
+			Addr:    ":80",
+			Handler: certManager.HTTPHandler(nil),
+		}
+
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			panic(fmt.Sprintf("error starting HTTP server on port 80: %v", err))
+		}
+
+		server = &http.Server{
+			Addr:         config.Address,
+			WriteTimeout: time.Second * time.Duration(config.HttpWriteTimeout),
+			ReadTimeout:  time.Second * time.Duration(config.HttpReadTimeout),
+			IdleTimeout:  time.Second * time.Duration(config.HttpIdleTimeout),
+			Handler:      cors.AllowAll().Handler(mux),
+			TLSConfig:    tlsConfig,
+		}
+	} else {
+		server = &http.Server{
+			Addr:         config.Address,
+			WriteTimeout: time.Second * time.Duration(config.HttpWriteTimeout),
+			ReadTimeout:  time.Second * time.Duration(config.HttpReadTimeout),
+			IdleTimeout:  time.Second * time.Duration(config.HttpIdleTimeout),
+			Handler:      cors.AllowAll().Handler(mux),
+		}
 	}
 
 	go func() {
+		var (
+			err error
+		)
+
 		slog.Info("starting HTTP server", slog.String("address", config.Address))
-		err := httpServer.ListenAndServe()
+
+		if config.LetsEncryptConfig != nil {
+			err = server.ListenAndServeTLS("", "")
+		} else {
+			err = server.ListenAndServe()
+		}
 
 		if err != nil && err != http.ErrServerClosed {
 			slog.Error("error starting HTTP server", slog.Any("error", err))
