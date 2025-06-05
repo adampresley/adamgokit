@@ -181,7 +181,7 @@ func IsHtmx(r *http.Request) bool {
 ReadJSONBody reads the body content from an http.Request as JSON data into
 dest.
 */
-func ReadJSONBody(r *http.Request, dest interface{}) error {
+func ReadJSONBody(r *http.Request, dest any) error {
 	var (
 		err error
 		b   []byte
@@ -192,7 +192,7 @@ func ReadJSONBody(r *http.Request, dest interface{}) error {
 	}
 
 	if err = json.Unmarshal(b, &dest); err != nil {
-		return fmt.Errorf("error unmarshaling body to destination: %w", err)
+		return fmt.Errorf("error unmarshaling body to destination: %w, contents: %s", err, string(b))
 	}
 
 	return nil
