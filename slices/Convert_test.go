@@ -75,4 +75,14 @@ func TestConvert(t *testing.T) {
 
 		assert.Equal(t, expected, result)
 	})
+
+	t.Run("Nil slice", func(t *testing.T) {
+		var expected = []string{}
+
+		result := slices.Convert(nil, func(s *string) string {
+			return *s
+		})
+
+		assert.Equal(t, expected, result)
+	})
 }
