@@ -18,6 +18,40 @@ chunks := slices.BreakIntoGroups(input, 2)
 // }
 ```
 
+## Convert
+
+A method to convert a slice of one type to another. This is useful in cases where you get data in one format and need it in another format.
+
+```go
+type Person struct {
+	Name string
+	Age  int
+}
+
+type SimplePerson struct {
+	FullName string
+}
+
+input := []Person{
+	{Name: "Alice", Age: 30},
+	{Name: "Bob", Age: 25},
+	{Name: "Charlie", Age: 35},
+}
+
+result := slices.Convert(input, func(p Person) SimplePerson {
+	return SimplePerson{
+		FullName: p.Name + " (" + strconv.Itoa(p.Age) + ")",
+	}
+})
+
+// Result:
+// []SimplePerson{
+//   { FullName: "Alice (30)" },
+//   { FullName: "Bob (25)" },
+//   { FullName: "Charlie (35)" },
+// }
+```
+
 ## Filter
 
 Filter takes a slice of items, calling a filter function for each item, and keeps those that return true. If the filter function returns false, them item is excluded from the resulting slice.
