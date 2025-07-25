@@ -4,18 +4,26 @@ import (
 	"log/slog"
 
 	"github.com/adampresley/adamgokit/waiter"
-	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/configuration"
-	{{- if .HasDB}}
-	"gorm.io/gorm"
-	{{end}}
+	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/configuration"{{- if .DBName}}
+	_ "github.com/glebarez/sqlite"
+	"github.com/rfberaldo/sqlz"
+	"github.com/rfberaldo/sqlz/binds"{{end}}
 )
 
 var (
 	Version     string = "development"
 	appName     string = "{{.AppName}}"
+
+	/* Service */{{- if .DBName}}
+	db *sqlz.DB{{end}}
+
 )
 
-func main() {
+func main() { {{- if .DBName}}
+	var (
+		err error
+	)
+{{end}}
 	config := configuration.LoadConfig()
 
 	slog.Info("configuration loaded",
@@ -24,7 +32,12 @@ func main() {
 		slog.String("loglevel", config.LogLevel),
 	)
 
-	slog.Debug("setting up...")
+	slog.Debug("setting up..."){{- if .DBName}}
+
+	binds.Register("sqlite", binds.BindByDriver("sqlite3"))
+	if db, err = sqlz.Connect("sqlite", config.DSN); err != nil {
+		panic(err)
+	}{{end}}
 
 	/*
 	 * Wait for graceful shutdown

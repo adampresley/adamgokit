@@ -57,6 +57,7 @@ It provides flags for additional add-ons, like CSS and JS frameworks.`,
 
 		appTemplateOptions := []string{
 			"Basic",
+			"REST API",
 			"Web",
 		}
 
@@ -72,7 +73,7 @@ It provides flags for additional add-ons, like CSS and JS frameworks.`,
 		pterm.Printf("\nChoose application template:\n")
 		selectedTemplate, _ = pterm.DefaultInteractiveSelect.WithOptions(appTemplateOptions).Show()
 
-		if selectedTemplate == "Web" {
+		if selectedTemplate == "Web" || selectedTemplate == "REST API" {
 			wantDB, _ = pterm.DefaultInteractiveConfirm.Show("\nDo you want to use a database?\n")
 
 			if wantDB {
@@ -85,7 +86,7 @@ It provides flags for additional add-ons, like CSS and JS frameworks.`,
 		config := &RenderConfig{
 			AppName:    appName,
 			GoVersion:  GO_VERSION,
-			Base:       fmt.Sprintf("templates/%s", strings.ToLower(selectedTemplate)),
+			Base:       fmt.Sprintf("templates/%s", strings.ToLower(strings.ReplaceAll(selectedTemplate, " ", ""))),
 			DirName:    appName,
 			GithubRepo: githubPath,
 			DBName:     dbName,

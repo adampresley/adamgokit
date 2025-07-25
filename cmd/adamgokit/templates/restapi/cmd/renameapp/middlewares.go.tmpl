@@ -1,0 +1,33 @@
+package main
+
+import (
+	"log/slog"
+	"net/http"
+
+	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/configuration"
+	"github.com/adampresley/adamgokit/httphelpers"
+)
+
+func newAuthMiddleware(config *configuration.Config) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var (
+				err   error
+				token string
+			)
+
+			if token, err = httphelpers.GetAuthorizationBearer(r); err != nil {
+				slog.Error("failed to get API key from request")
+				httphelpers.TextUnauthorized(w, "Unauthorized")
+				return
+			}
+
+			if token != config.ApiKey {
+				slog.Error("invalid API key")
+				httphelpers.TextUnauthorized(w, "Unauthorized")
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}

@@ -1,0 +1,94 @@
+package main
+
+import (
+	"log/slog"
+	"net/http"
+
+	"github.com/adampresley/adamgokit/httphelpers"
+	"github.com/adampresley/adamgokit/mux"
+	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/configuration"
+	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/home"{{- if .DBName}}
+	_ "github.com/glebarez/sqlite"
+	"github.com/rfberaldo/sqlz"
+	"github.com/rfberaldo/sqlz/binds"{{end}}
+)
+
+var (
+	Version string = "development"
+	appName string = "{{.AppName}}"
+
+	/* Services */{{- if .DBName}}
+	db       *sqlz.DB{{end}}
+
+	/* Controllers */
+	homeHandlers home.HomeHandlers
+)
+
+func main() { {{- if .DBName}}
+	var (
+		err error
+	)
+{{end}}
+	config := configuration.LoadConfig()
+	setupLogger(&config, Version)
+
+	slog.Info("configuration loaded",
+		slog.String("app", appName),
+		slog.String("version", Version),
+		slog.String("loglevel", config.LogLevel),
+		slog.String("host", config.Host),
+	)
+
+	slog.Debug("setting up..."){{- if .DBName}}
+
+	binds.Register("sqlite", binds.BindByDriver("sqlite3"))
+	if db, err = sqlz.Connect("sqlite", config.DSN); err != nil {
+		panic(err)
+	}{{end}}
+
+	/*
+	 * Setup services
+	 */
+
+	/*
+	 * Setup handlers
+	 */
+	homeHandlers = home.NewHomeController(home.HomeControllerConfig{
+		Config:  &config,
+		Version: Version,
+	})
+
+	/*
+	 * Setup router and http server
+	 */
+	slog.Debug("setting up routes...")
+
+	authMiddleware := newAuthMiddleware(&config)
+
+	routes := []mux.Route{
+		{Path: "GET /heartbeat", HandlerFunc: heartbeat},
+		{Path: "GET /version", HandlerFunc: homeHandlers.Version, Middlewares: []mux.MiddlewareFunc{authMiddleware}},
+	}
+
+	routerConfig := mux.RouterConfig{
+		Address:              config.Host,
+		Debug:                Version == "development",
+	}
+
+	m := mux.SetupRouter(routerConfig, routes)
+	httpServer, quit := mux.SetupServer(routerConfig, m)
+
+	/*
+	 * Wait for graceful shutdown
+	 */
+	slog.Info("server started")
+
+	<-quit
+	mux.Shutdown(httpServer)
+	slog.Info("server stopped")
+}
+
+func heartbeat(w http.ResponseWriter, r *http.Request) {
+	httphelpers.TextOK(w, "OK")
+}
+

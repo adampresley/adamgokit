@@ -1,0 +1,33 @@
+package home
+
+import (
+	"net/http"
+
+	"github.com/adampresley/adamgokit/httphelpers"
+	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/configuration"
+)
+
+type HomeHandlers interface {
+	Version(w http.ResponseWriter, r *http.Request)
+}
+
+type HomeControllerConfig struct {
+	Config  *configuration.Config
+	Version string
+}
+
+type HomeController struct {
+	config  *configuration.Config
+	version string
+}
+
+func NewHomeController(config HomeControllerConfig) HomeController {
+	return HomeController{
+		config:  config.Config,
+		version: config.Version,
+	}
+}
+
+func (c HomeController) Version(w http.ResponseWriter, r *http.Request) {
+	httphelpers.JsonOK(w, map[string]string{"version": c.version})
+}
