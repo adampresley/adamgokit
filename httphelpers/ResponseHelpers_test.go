@@ -143,3 +143,22 @@ func TestJsonUnauthorized(t *testing.T) {
 	assert.Equal(t, want, got)
 	assert.Equal(t, http.StatusUnauthorized, result.StatusCode)
 }
+
+func TestDownloadCSV(t *testing.T) {
+	csvContent := []byte("Name,Age,City\nJohn,30,New York\nJane,25,Los Angeles")
+	filename := "test_data.csv"
+
+	recorder := httptest.NewRecorder()
+	httphelpers.DownloadCSV(recorder, filename, csvContent)
+
+	result := recorder.Result()
+
+	got, err := io.ReadAll(result.Body)
+
+	assert.NoError(t, err)
+	assert.Equal(t, csvContent, got)
+	assert.Equal(t, http.StatusOK, result.StatusCode)
+	assert.Equal(t, "text/csv", result.Header.Get("Content-Type"))
+	assert.Equal(t, `attachment; filename="test_data.csv"`, result.Header.Get("Content-Disposition"))
+	assert.Equal(t, "50", result.Header.Get("Content-Length"))
+}

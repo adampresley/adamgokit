@@ -136,3 +136,14 @@ in JSON.
 httphelpers.JsonErrorMessage(w, http.StatusInternalServerError, "something went wrong")
 // The result written is {"message": "something went wrong"}
 ```
+
+### DownloadCSV
+
+**DownloadCSV** writes bytes as a CSV file to the response writer and downloads it. It sets the appropriate headers for CSV file download including Content-Type, Content-Disposition, and Content-Length.
+
+```go
+csvContent := []byte("Name,Age,City\nJohn,30,New York\nJane,25,Los Angeles")
+filename := "users.csv"
+
+httphelpers.DownloadCSV(w, filename, csvContent)
+```

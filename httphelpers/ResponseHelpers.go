@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 )
 
 func writePlain(w http.ResponseWriter, contentType string, status int, value any) {
@@ -144,4 +145,15 @@ arbitrary text body.
 */
 func TextUnauthorized(w http.ResponseWriter, value any) {
 	WriteText(w, http.StatusUnauthorized, value)
+}
+
+/*
+DownloadCSV writes bytes as a CSV file to the response writer and downloads it.
+*/
+func DownloadCSV(w http.ResponseWriter, filename string, csvContent []byte) {
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	w.Header().Set("Content-Length", strconv.Itoa(len(csvContent)))
+
+	w.Write(csvContent)
 }
