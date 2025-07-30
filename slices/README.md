@@ -69,6 +69,22 @@ filtered := slices.Filter(input, func(item string) []string {
 // filtered == []string{"Adam"}
 ```
 
+## FilterAndMap
+
+FilterAndMap takes a slice of items, calling a function for each item, keeping and transforming those items that return true. This combines filtering and mapping in a single operation.
+
+```go
+input := []int{1, 2, 3, 4, 5, 6}
+result := slices.FilterAndMap(input, func(item int, index int) (string, bool) {
+  if item%2 == 0 {
+    return strconv.Itoa(item * 10), true
+  }
+  return "", false
+})
+
+// Result: []string{"20", "40", "60"}
+```
+
 ## Find
 
 Find searches a slice for the first item that matches the result of a predicate function. If the function returns true the item is returned. If no item is found then either nil or the type's default value is returned.
