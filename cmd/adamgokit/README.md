@@ -3,7 +3,7 @@
 This is a took to generate skeleton applications using my Go kit. It makes use of the following:
 
 * [Go 1.23](https://golang.org)
-* [Adam's Go Kit](https://github.com/adampresley/adamgokit) v1.10.0
+* [Adam's Go Kit](https://github.com/adampresley/adamgokit) v1.11.0
 * [Pico CSS](https://picocss.com) v2.0.6
 * [HTMX](https://htmx.org) v2.0.4
 

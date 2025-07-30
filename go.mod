@@ -5,6 +5,7 @@ go 1.23.0
 require (
 	github.com/adampresley/goth v1.0.2
 	github.com/antonlindstrom/pgstore v0.0.0-20220421113606-e3a6e3fed12a
+	github.com/golang-jwt/jwt/v5 v5.2.3
 	github.com/gorilla/sessions v1.2.1
 	github.com/pterm/pterm v0.12.80
 	github.com/robfig/cron/v3 v3.0.1
