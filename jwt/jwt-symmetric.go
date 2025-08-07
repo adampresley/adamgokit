@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	gojwt "github.com/golang-jwt/jwt/v5"
 )
@@ -108,12 +109,24 @@ func (j *JwtSymmetric[T]) convertToMap(payload T) gojwt.MapClaims {
 		return claims
 	}
 
+	j.addFieldsToClaims(v, t, claims)
+	return claims
+}
+
+func (j *JwtSymmetric[T]) addFieldsToClaims(v reflect.Value, t reflect.Type, claims gojwt.MapClaims) {
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
 		fieldType := t.Field(i)
 
 		// Skip unexported fields
 		if !field.CanInterface() {
+			continue
+		}
+
+		// Handle embedded structs (like gojwt.RegisteredClaims)
+		if fieldType.Anonymous && field.Kind() == reflect.Struct {
+			// Recursively add fields from embedded struct
+			j.addFieldsToClaims(field, fieldType.Type, claims)
 			continue
 		}
 
@@ -129,8 +142,6 @@ func (j *JwtSymmetric[T]) convertToMap(payload T) gojwt.MapClaims {
 
 		claims[fieldName] = field.Interface()
 	}
-
-	return claims
 }
 
 func (j *JwtSymmetric[T]) convertFromMap(claims gojwt.MapClaims) (T, error) {
@@ -250,6 +261,23 @@ func (j *JwtSymmetric[T]) setFieldValue(field reflect.Value, value any) error {
 
 	valueReflect := reflect.ValueOf(value)
 	fieldType := field.Type()
+
+	// Special handling for jwt.NumericDate types
+	if fieldType == reflect.TypeOf((*gojwt.NumericDate)(nil)) {
+		// Handle *jwt.NumericDate
+		if floatVal, ok := value.(float64); ok {
+			numericDate := gojwt.NewNumericDate(time.Unix(int64(floatVal), 0))
+			field.Set(reflect.ValueOf(numericDate))
+			return nil
+		}
+	} else if fieldType == reflect.TypeOf(gojwt.NumericDate{}) {
+		// Handle jwt.NumericDate (non-pointer)
+		if floatVal, ok := value.(float64); ok {
+			numericDate := *gojwt.NewNumericDate(time.Unix(int64(floatVal), 0))
+			field.Set(reflect.ValueOf(numericDate))
+			return nil
+		}
+	}
 
 	// If types match directly, set the value
 	if valueReflect.Type().AssignableTo(fieldType) {
