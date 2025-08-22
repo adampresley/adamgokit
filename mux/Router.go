@@ -66,11 +66,12 @@ type RouterConfig struct {
 	HttpIdleTimeout      int
 	HttpReadTimeout      int
 	HttpWriteTimeout     int
+	LetsEncryptConfig    *LetsEncryptConfig
+	Middlewares          []MiddlewareFunc
 	ServeStaticContent   bool
 	StaticContentRootDir string
 	StaticContentPrefix  string
 	StaticFS             fs.FS
-	LetsEncryptConfig    *LetsEncryptConfig
 }
 
 func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
@@ -156,7 +157,14 @@ func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
 		}
 
 		/*
-		 * Wrap in any additional configured middlewares.
+		 * Wrap in any additional router-configured middlewares.
+		 */
+		for _, mw := range config.Middlewares {
+			handler = mw(handler)
+		}
+
+		/*
+		 * Wrap in any additional route-configured middlewares.
 		 */
 		for _, mw := range route.Middlewares {
 			handler = mw(handler)

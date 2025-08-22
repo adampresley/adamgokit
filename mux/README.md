@@ -71,12 +71,44 @@ func middlewareFunc(next http.Handler) http.Handler {
 
 This library supports two ways to intercept requests with middlewares:
 
+- Router-level
 - Per route
-- Built-in authentication middlewraes via configuration
+- Built-in authentication middlewares via configuration
+
+### Router-level
+
+Router-level middlewares are applied to all routes. This is useful in situations 
+such as logging. Here is a simple example:
+
+```go
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("request path: %s\n", r.Path)
+	})
+}
+
+routerConfig := mux.RouterConfig{
+  Address:    "localhost:8080",
+  Middlewares: []mux.MiddlewareFunc{loggingMiddleware},
+}
+```
 
 ### Per-route
 
-Here is an example of adding a middleware to a single route.
+Per-route middlewares are middlewares that are only applied to a single route.
+This is useful if you wish to intercept a single request to perform some action.
+
+```go
+func testMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Do something here.
+	})
+}
+
+routes := []mux.Route{
+	{Path: "GET /about", HandlerFunc: aboutHandler, Middlewares: []mux.MiddlewareFunc{testMiddleware}},
+}
+```
 
 ### Authentication middleware
 
