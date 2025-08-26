@@ -12,7 +12,7 @@ This is a took to generate skeleton applications using my Go kit. It makes use o
 To install this tool, ensure you have Go v1.23+ and run the following:
 
 ```bash
-go install github.com/adampresley/adamgokit/cmd/adamgokit@1.9.10
+go install github.com/adampresley/adamgokit/cmd/adamgokit@v1.14.0
 ```
 
 ## 🚀 Usage
