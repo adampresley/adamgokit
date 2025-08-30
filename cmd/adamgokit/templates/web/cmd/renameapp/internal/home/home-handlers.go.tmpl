@@ -34,7 +34,7 @@ func NewHomeController(config HomeControllerConfig) HomeController {
 func (c HomeController) HomePage(w http.ResponseWriter, r *http.Request) {
 	pageName := "pages/home"
 
-	viewData := viewmodels.HomePage{
+	viewData := viewmodels.Home{
 		BaseViewModel: viewmodels.BaseViewModel{
 			Message:            "",
 			IsHtmx:             httphelpers.IsHtmx(r),
@@ -48,7 +48,7 @@ func (c HomeController) HomePage(w http.ResponseWriter, r *http.Request) {
 func (c HomeController) AboutPage(w http.ResponseWriter, r *http.Request) {
 	pageName := "pages/about"
 
-	viewData := viewmodels.AboutPage{
+	viewData := viewmodels.About{
 		BaseViewModel: viewmodels.BaseViewModel{
 			Message:            "",
 			IsHtmx:             httphelpers.IsHtmx(r),
