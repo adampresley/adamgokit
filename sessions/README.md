@@ -23,6 +23,38 @@ if err != nil {
 defer storeCleanup()
 ```
 
+## Cookie Store
+
+This package provides a convenience method for creating a cookie-based session store
+with customizable options. It wraps the Gorilla Sessions cookie store with additional
+configuration flexibility.
+
+```go
+import "github.com/adampresley/adamgokit/sessions"
+
+sessionKey := "your-secret-key"
+
+// Basic cookie store
+store := sessions.NewCookieStore(sessionKey)
+
+// Cookie store with custom options
+store := sessions.NewCookieStore(
+  sessionKey,
+  sessions.WithSecure(true),
+  sessions.WithMaxAge(24 * time.Hour),
+  sessions.WithSameSite(http.SameSiteStrictMode),
+  sessions.WithDomain("example.com"),
+  sessions.WithHttpOnly(true),
+)
+```
+
+Available options:
+- `WithSecure(bool)` - Sets whether cookies should only be sent over HTTPS
+- `WithMaxAge(time.Duration)` - Sets the maximum age for the cookie
+- `WithSameSite(http.SameSite)` - Sets the SameSite attribute for the cookie
+- `WithDomain(string)` - Sets the domain for the cookie
+- `WithHttpOnly(bool)` - Sets whether the cookie is accessible only through HTTP
+
 ## Session Wrapper
 
 This component provides a wrapper around the Gorilla Sessions package. It
