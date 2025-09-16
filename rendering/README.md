@@ -92,13 +92,20 @@ var (
 )
 
 func main() {
-  renderer = rendering.NewGoTemplateRenderer(rendering.GoTemplateRendererConfig{
+  var (
+    err error
+  )
+
+  renderer, err = rendering.NewGoTemplateRenderer(rendering.GoTemplateRendererConfig{
     TemplateDir:       "app",
-    ComponentsDir:     "components",
-    LayoutsDir:        "layouts",
     TemplateExtension: ".html",
     TemplateFS:        appFS,
+    PagesDir:          "pages",
   })
+
+  if err != nil {
+    panic(err)
+  }
 
   routes := []mux.Route{
     {Path: "GET /", Handler: http.HandlerFunc(getIndex)},
@@ -122,7 +129,7 @@ func getIndex(w http.ResponseWriter, r *http.Request) {
     Title: "Hello!",
   }
 
-  renderer.Render("index", viewData, w)
+  renderer.Render("pages/index", viewData, w)
 }
 ```
 
@@ -131,10 +138,21 @@ func getIndex(w http.ResponseWriter, r *http.Request) {
 The basic requirements of configuring the Go template renderer are:
 
 - Template directory - The directory where Go template files live
-- Layout directory - The subdirectory (under template directory) where layouts live
-- Components directory - An optional directory (_components_) where reusable, includable components live
 - Template extension - The extension for Go template files
 - Template filesystem - A filesystem reference for Go template files
+- Pages directory - The name of the directory that houses pages. Pages can reference other templates like layouts, components, and partials. Those should be in a different directory.
+
+A good layout might look like this:
+
+```
+cmd/your-app/                  # Main application
+├── app/                       # Frontend assets
+│   ├── layouts/               # HTML layout templates
+│   ├── pages/                 # Page templates
+│   ├── components/            # Reusable components
+│   └── static/                # CSS, JS, images
+```
+
 
 The Go template renderer includes a small set of handy functions that
 you can use in your templates. These include:
@@ -158,9 +176,8 @@ moreFuncs := template.FuncMap{
 renderer = rendering.NewGoTemplateRenderer(rendering.GoTemplateRendererConfig{
   AdditionalFunc:    moreFuncs,
   TemplateDir:       "app",
-  ComponentsDir:     "components",
-  LayoutsDir:        "layouts",
   TemplateExtension: ".html",
   TemplateFS:        appFS,
+  PagesDir:          "pages",
 })
 ```

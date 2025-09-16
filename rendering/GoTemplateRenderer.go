@@ -6,7 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
-	"os"
+	"maps"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -15,213 +15,200 @@ import (
 
 type GoTemplateRendererConfig struct {
 	AdditionalFuncs   template.FuncMap
+	PagesDir          string
 	TemplateDir       string
 	TemplateExtension string
 	TemplateFS        fs.FS
-	ComponentsDir     string
-	LayoutsDir        string
 }
 
 type GoTemplateRenderer struct {
 	funcs             template.FuncMap
+	pagesDir          string
 	templateDir       string
 	templateExtension string
 	templateFS        fs.FS
 	componentsDir     string
 	layoutsDir        string
 
-	templates map[string]*template.Template
+	allTemplates *template.Template
 }
 
-func NewGoTemplateRenderer(config GoTemplateRendererConfig) *GoTemplateRenderer {
-	var (
-		err error
-	)
-
-	ext := config.TemplateExtension
-
-	if ext == "" {
-		ext = ".html"
-	}
-
-	funcs := getFuncs(config.AdditionalFuncs)
-	tmpl := template.New("").Funcs(funcs)
-	templates := map[string]*template.Template{}
-
-	/*
-	 * Process components first
-	 */
-	if config.ComponentsDir != "" {
-		err = fs.WalkDir(config.TemplateFS, filepath.Join(config.TemplateDir, config.ComponentsDir), func(path string, d fs.DirEntry, err error) error {
-			var (
-				relativePath string
-				content      []byte
-			)
-
-			if err != nil {
-				return err
-			}
-
-			if d.IsDir() || !strings.HasSuffix(path, normalizeTemplateExt(ext)) {
-				return nil
-			}
-
-			if relativePath, err = filepath.Rel(config.TemplateDir, path); err != nil {
-				return err
-			}
-
-			templateName := strings.TrimSuffix(relativePath, ext)
-
-			if content, err = fs.ReadFile(config.TemplateFS, path); err != nil {
-				return err
-			}
-
-			template.Must(tmpl.New(templateName).Parse(string(content)))
-			slog.Debug("parsed component", "templateName", templateName, "path", path)
-			return nil
-		})
-	}
-
-	/*
-	 * Process layouts second
-	 */
-	err = fs.WalkDir(config.TemplateFS, filepath.Join(config.TemplateDir, config.LayoutsDir), func(path string, d fs.DirEntry, err error) error {
-		var (
-			relativePath string
-			content      []byte
-		)
-
-		if err != nil {
-			return err
-		}
-
-		if d.IsDir() || !strings.HasSuffix(path, normalizeTemplateExt(ext)) {
-			return nil
-		}
-
-		if relativePath, err = filepath.Rel(config.TemplateDir, path); err != nil {
-			return err
-		}
-
-		templateName := strings.TrimSuffix(relativePath, ext)
-
-		if content, err = fs.ReadFile(config.TemplateFS, path); err != nil {
-			return err
-		}
-
-		template.Must(tmpl.New(templateName).Parse(string(content)))
-		slog.Debug("parsed layout", "templateName", templateName, "path", path)
-		return nil
-	})
-
-	if err != nil {
-		slog.Error("error parsing layouts. shutting down.", "error", err, "templateDir", config.TemplateDir, "ext", ext)
-		os.Exit(1)
-	}
-
-	err = fs.WalkDir(config.TemplateFS, config.TemplateDir, func(path string, d fs.DirEntry, err error) error {
-		var (
-			relativePath string
-			content      []byte
-			// tt           *template.Template
-		)
-
-		if err != nil {
-			return err
-		}
-
-		if d.IsDir() || !strings.HasSuffix(path, normalizeTemplateExt(ext)) {
-			return nil
-		}
-
-		// Don't re-parse layouts or components
-		if strings.HasPrefix(path, filepath.Join(config.TemplateDir, config.LayoutsDir)) {
-			return nil
-		}
-
-		if config.ComponentsDir != "" && strings.HasPrefix(path, filepath.Join(config.TemplateDir, config.ComponentsDir)) {
-			return nil
-		}
-
-		// Do it!
-		if relativePath, err = filepath.Rel(config.TemplateDir, path); err != nil {
-			return err
-		}
-
-		templateName := strings.TrimSuffix(relativePath, ext)
-
-		if content, err = fs.ReadFile(config.TemplateFS, path); err != nil {
-			return err
-		}
-
-		tmpl = template.Must(template.Must(tmpl.Clone()).New(templateName).Parse(string(content)))
-		templates[templateName] = tmpl
-		slog.Debug("parsed template", "templateName", templateName, "path", path)
-
-		return nil
-	})
-
-	if err != nil {
-		slog.Error("error parsing templates. shutting down.", "error", err, "templateDir", config.TemplateDir, "ext", ext)
-		os.Exit(1)
-	}
-
-	result := &GoTemplateRenderer{
-		funcs:             funcs,
+func NewGoTemplateRenderer(config GoTemplateRendererConfig) (*GoTemplateRenderer, error) {
+	renderer := &GoTemplateRenderer{
+		funcs:             config.AdditionalFuncs,
+		pagesDir:          config.PagesDir,
+		templateDir:       config.TemplateDir,
+		templateExtension: config.TemplateExtension,
 		templateFS:        config.TemplateFS,
-		templateExtension: normalizeTemplateExt(ext),
-		templateDir:       normalizeTemplateDir(config.TemplateDir),
-		componentsDir:     config.ComponentsDir,
-		layoutsDir:        config.LayoutsDir,
-		templates:         templates,
 	}
 
-	return result
+	if renderer.pagesDir == "" {
+		return nil, fmt.Errorf("pages directory not provided. this is required to render pages. this directory should contain your HTML templates that rely on layouts and other components")
+	}
+
+	renderer.pagesDir = filepath.Clean(renderer.pagesDir)
+
+	if renderer.templateExtension == "" {
+		renderer.templateExtension = ".html"
+	}
+
+	if err := renderer.loadTemplates(); err != nil {
+		return nil, fmt.Errorf("failed to load templates: %w", err)
+	}
+
+	return renderer, nil
 }
 
-/*
-Render renders a Go template file into a layout template file using the provided
-data to an io.Writer.
-*/
-func (tr *GoTemplateRenderer) Render(templateName string, data any, w io.Writer) {
-	var (
-		err error
-		t   *template.Template
-		ok  bool
-	)
+func (tr *GoTemplateRenderer) loadTemplates() error {
+	funcs := getFuncs(tr.funcs)
+	tr.allTemplates = template.New("").Funcs(funcs)
 
-	if t, ok = tr.templates[templateName]; !ok {
-		slog.Error("cannot find template", "error", err, "templateName", templateName)
-		fmt.Fprintf(w, "cannot find template '%s'", templateName)
-		return
-	}
+	return fs.WalkDir(tr.templateFS, tr.templateDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 
-	if err = t.ExecuteTemplate(w, templateName, data); err != nil {
-		slog.Error("error executing template", "error", err, "templateName", templateName)
-		fmt.Fprintf(w, "cannot execute template '%s': %s", templateName, err.Error())
-		return
-	}
+		if d.IsDir() || !strings.HasSuffix(path, tr.templateExtension) {
+			return nil
+		}
+
+		templateName := tr.getTemplateName(path)
+
+		/*
+		 * Skip pages in the pages directory, as we'll load them individually when needed.
+		 */
+		if strings.HasPrefix(templateName, tr.pagesDir) {
+			return nil
+		}
+
+		content, err := fs.ReadFile(tr.templateFS, path)
+		if err != nil {
+			return fmt.Errorf("failed to read template %s: %w", path, err)
+		}
+
+		tmpl := tr.allTemplates.New(templateName)
+
+		if _, err := tmpl.Parse(string(content)); err != nil {
+			return fmt.Errorf("failed to parse template %s: %w", path, err)
+		}
+
+		slog.Debug("parsed template", "name", templateName)
+		return nil
+	})
 }
 
-/*
-RenderString renders a Go template string with a set of data to an io.Writer.
-*/
-func (tr *GoTemplateRenderer) RenderString(templateString string, data any, w io.Writer) {
-	var (
-		err  error
-		tmpl *template.Template
-	)
+func (tr *GoTemplateRenderer) getTemplateName(path string) string {
+	relPath, _ := filepath.Rel(tr.templateDir, path)
+	ext := filepath.Ext(relPath)
+	return strings.TrimSuffix(relPath, ext)
+}
 
-	if tmpl, err = template.New("raw").Funcs(tr.funcs).Parse(templateString); err != nil {
-		slog.Error("error parsing template", "error", err)
-		fmt.Fprintf(w, "error parsing template: %s", err.Error())
-		return
+func (tr *GoTemplateRenderer) Render(templateName string, data any, w io.Writer) error {
+	slog.Debug("executing template", "name", templateName)
+
+	/*
+	 * For templates in the pages directory, we need to create a custom template that includes
+	 * external templates. We do this by cloning allTemplates, then rendering the page template separately.
+	 */
+	if strings.HasPrefix(templateName, tr.pagesDir) {
+		return tr.renderPageWithLayout(templateName, data, w)
+	}
+
+	clonedTemplates, err := tr.allTemplates.Clone()
+
+	if err != nil {
+		return fmt.Errorf("failed to clone shared templates: %w", err)
+	}
+
+	tmpl := clonedTemplates.Lookup(templateName)
+
+	if tmpl == nil {
+		return fmt.Errorf("template %s not found", templateName)
+	}
+
+	if err := clonedTemplates.ExecuteTemplate(w, templateName, data); err != nil {
+		slog.Error("failed to execute template", "name", templateName, "error", err)
+		return tr.renderError(templateName, err, w)
+	}
+
+	return nil
+}
+
+func (tr *GoTemplateRenderer) renderPageWithLayout(templateName string, data any, w io.Writer) error {
+	pageTemplate, err := tr.allTemplates.Clone()
+
+	if err != nil {
+		return fmt.Errorf("failed to clone shared templates: %w", err)
+	}
+
+	pagePath := filepath.Join(tr.templateDir, templateName+tr.templateExtension)
+	pageContent, err := fs.ReadFile(tr.templateFS, pagePath)
+
+	if err != nil {
+		return fmt.Errorf("failed to read page template %s: %w", pagePath, err)
+	}
+
+	if _, err := pageTemplate.New(templateName).Parse(string(pageContent)); err != nil {
+		return tr.renderError(templateName, err, w)
+	}
+
+	if err := pageTemplate.ExecuteTemplate(w, templateName, data); err != nil {
+		return tr.renderError(templateName, err, w)
+	}
+
+	return nil
+}
+
+func (tr *GoTemplateRenderer) RenderString(templateString string, data any, w io.Writer) error {
+	funcs := getFuncs(tr.funcs)
+	tmpl, err := template.New("inline").Funcs(funcs).Parse(templateString)
+
+	if err != nil {
+		return fmt.Errorf("failed to parse template string: %w", err)
+	}
+
+	for _, t := range tr.allTemplates.Templates() {
+		if _, err := tmpl.AddParseTree(t.Name(), t.Tree); err != nil {
+			return fmt.Errorf("failed to add template %s: %w", t.Name(), err)
+		}
+	}
+
+	if err := tmpl.Execute(w, data); err != nil {
+		slog.Error("failed to execute template string", "error", err)
+		return tr.renderError("inline template", err, w)
+	}
+
+	return nil
+}
+
+func (tr *GoTemplateRenderer) renderError(templateName string, err error, w io.Writer) error {
+	templateString := `<html><body>{{.Content}}</body></html>`
+
+	data := map[string]any{
+		"Content": template.HTML(fmt.Sprintf(`
+<h2>Rendering Error</h2>
+
+<article style="background-color: #AF291D; color: white; padding: 1rem; border-radius: 5px;">
+	<p>
+		An error occurred while rendering the page '%s': %s
+	</p>
+</article>
+`, templateName, err.Error())),
+	}
+
+	tmpl, err := template.New("error-inline").Parse(templateString)
+
+	if err != nil {
+		slog.Error("failed to parse nice error template", "error", err)
+		return fmt.Errorf("failed to parse nice error template: %w", err)
 	}
 
 	if err = tmpl.Execute(w, data); err != nil {
-		slog.Error("error executing template", "error", err)
-		fmt.Fprintf(w, "error executing template: %s", err.Error())
+		slog.Error("failed to execute nice error template", "error", err)
+		return fmt.Errorf("failed to execute nice error template: %w", err)
 	}
+
+	return nil
 }
 
 func getFuncs(additionalFuncs template.FuncMap) template.FuncMap {
@@ -237,19 +224,14 @@ func getFuncs(additionalFuncs template.FuncMap) template.FuncMap {
 		"stylesheetIncludes":  stylesheetIncludes,
 	}
 
-	if additionalFuncs != nil {
-		for k, v := range additionalFuncs {
-			templateFuncs[k] = v
-		}
-	}
-
+	maps.Copy(templateFuncs, additionalFuncs)
 	return templateFuncs
 }
 
 func templateFuncIsSet(name string, data any) bool {
 	v := reflect.ValueOf(data)
 
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 
@@ -269,13 +251,7 @@ func isLastItem(index, length int) bool {
 }
 
 func containsString(slice []string, item string) bool {
-	for _, i := range slice {
-		if i == item {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(slice, item)
 }
 
 func stringNotEmpty(s any) bool {
@@ -303,7 +279,7 @@ func javascriptIncludes(keyName string, data any) template.HTML {
 
 	v := reflect.ValueOf(data)
 
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 
@@ -339,7 +315,7 @@ func stylesheetIncludes(keyName string, data any) template.HTML {
 
 	v := reflect.ValueOf(data)
 
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 
@@ -369,7 +345,7 @@ func stylesheetIncludes(keyName string, data any) template.HTML {
 func join(s any, sep string) string {
 	v := reflect.ValueOf(s)
 
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 
@@ -380,7 +356,7 @@ func join(s any, sep string) string {
 	var result strings.Builder
 	length := v.Len()
 
-	for i := 0; i < length; i++ {
+	for i := range length {
 		result.WriteString(fmt.Sprintf("%v", v.Index(i).Interface()))
 
 		if i < length-1 {
@@ -389,36 +365,4 @@ func join(s any, sep string) string {
 	}
 
 	return result.String()
-}
-
-func normalizeTemplateDir(templateDir string) string {
-	result := ""
-
-	if strings.HasPrefix(templateDir, "/") {
-		result = templateDir[1:]
-	} else {
-		result = templateDir
-	}
-
-	if strings.HasSuffix(result, "/") {
-		result = result[:len(result)-1]
-	}
-
-	return result
-}
-
-func normalizeTemplateExt(templateExt string) string {
-	if strings.HasPrefix(templateExt, ".") {
-		return templateExt
-	}
-
-	return "." + templateExt
-}
-
-func normalizeTemplateName(templateName string) string {
-	if !strings.HasPrefix(templateName, "/") {
-		return templateName
-	}
-
-	return templateName[1:]
 }
