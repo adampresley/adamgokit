@@ -20,24 +20,36 @@ func NewMailgunService(config *Config) *MailgunService {
 }
 
 func (s *MailgunService) Send(mail Mail) error {
+	var message mailgun.Message
 	body := ""
 
 	if !mail.BodyIsHtml {
 		body = mail.Body
 	}
 
-	message := mailgun.NewMessage(
-		s.Config.Domain,
-		mail.From.Email,
-		mail.Subject,
-		body,
-		slices.Map(mail.To, func(input EmailAddress, index int) string {
-			return input.Email
-		})...,
-	)
-
 	if mail.BodyIsHtml {
+		message = mailgun.NewMessage(
+			s.Config.Domain,
+			mail.From.Email,
+			mail.Subject,
+			"",
+			slices.Map(mail.To, func(input EmailAddress, index int) string {
+				return input.Email
+			})...,
+		)
+
 		message.SetHTML(body)
+
+	} else {
+		message = mailgun.NewMessage(
+			s.Config.Domain,
+			mail.From.Email,
+			mail.Subject,
+			body,
+			slices.Map(mail.To, func(input EmailAddress, index int) string {
+				return input.Email
+			})...,
+		)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), s.Config.Timeout)
