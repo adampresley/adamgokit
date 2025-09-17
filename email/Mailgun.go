@@ -21,11 +21,6 @@ func NewMailgunService(config *Config) *MailgunService {
 
 func (s *MailgunService) Send(mail Mail) error {
 	var message mailgun.Message
-	body := ""
-
-	if !mail.BodyIsHtml {
-		body = mail.Body
-	}
 
 	if mail.BodyIsHtml {
 		message = mailgun.NewMessage(
@@ -38,14 +33,14 @@ func (s *MailgunService) Send(mail Mail) error {
 			})...,
 		)
 
-		message.SetHTML(body)
+		message.SetHTML(mail.Body)
 
 	} else {
 		message = mailgun.NewMessage(
 			s.Config.Domain,
 			mail.From.Email,
 			mail.Subject,
-			body,
+			mail.Body,
 			slices.Map(mail.To, func(input EmailAddress, index int) string {
 				return input.Email
 			})...,
