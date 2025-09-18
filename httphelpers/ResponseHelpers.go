@@ -157,3 +157,7 @@ func DownloadCSV(w http.ResponseWriter, filename string, csvContent []byte) {
 
 	w.Write(csvContent)
 }
+
+func IsSuccessRange(status int) bool {
+	return status >= 200 && status < 300
+}

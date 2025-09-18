@@ -162,3 +162,21 @@ func TestDownloadCSV(t *testing.T) {
 	assert.Equal(t, `attachment; filename="test_data.csv"`, result.Header.Get("Content-Disposition"))
 	assert.Equal(t, "50", result.Header.Get("Content-Length"))
 }
+
+func TestIsSuccessRange(t *testing.T) {
+	t.Run("returns true for 200-299 status codes", func(t *testing.T) {
+		status := http.StatusOK
+		want := true
+
+		got := httphelpers.IsSuccessRange(status)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("returns false for 400-599 status codes", func(t *testing.T) {
+		status := http.StatusInternalServerError
+		want := false
+
+		got := httphelpers.IsSuccessRange(status)
+		assert.Equal(t, want, got)
+	})
+}

@@ -1,6 +1,6 @@
 module github.com/adampresley/adamgokit
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/adampresley/goth v1.0.2
@@ -55,6 +55,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/oauth2 v0.26.0 // indirect
