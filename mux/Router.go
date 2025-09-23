@@ -72,6 +72,7 @@ type RouterConfig struct {
 	StaticContentRootDir string
 	StaticContentPrefix  string
 	StaticFS             fs.FS
+	UseGzipForStaticFS   bool
 }
 
 func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
@@ -112,7 +113,13 @@ func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
 
 	if config.ServeStaticContent {
 		staticFS = http.FileServer(getStaticFileSystem(&config))
-		m.Handle(fmt.Sprintf("GET %s", normalizeStaticContentPrefix(config.StaticContentPrefix)), staticFS)
+		var wrappedStaticFS http.Handler = staticFS
+
+		if config.UseGzipForStaticFS {
+			wrappedStaticFS = GzipMiddleware(wrappedStaticFS)
+		}
+
+		m.Handle(fmt.Sprintf("GET %s", normalizeStaticContentPrefix(config.StaticContentPrefix)), wrappedStaticFS)
 	}
 
 	if config.AuthConfig != nil {
