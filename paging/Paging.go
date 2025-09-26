@@ -3,14 +3,14 @@ package paging
 import "math"
 
 type Paging struct {
-	Page         int
-	TotalItems   int64
-	ItemsPerPage int
-	TotalPages   int
-	HasNext      bool
-	NextPage     int
-	HasPrevious  bool
-	PreviousPage int
+	Page         int   `json:"page"`
+	TotalItems   int64 `json:"totalItems"`
+	ItemsPerPage int   `json:"itemsPerPage"`
+	TotalPages   int   `json:"totalPages"`
+	HasNext      bool  `json:"hasNext"`
+	NextPage     int   `json:"nextPage"`
+	HasPrevious  bool  `json:"hasPrevious"`
+	PreviousPage int   `json:"previousPage"`
 }
 
 /*
