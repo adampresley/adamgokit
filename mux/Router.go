@@ -116,7 +116,7 @@ func SetupRouter(config RouterConfig, routes []Route) *http.ServeMux {
 		var wrappedStaticFS http.Handler = staticFS
 
 		if config.UseGzipForStaticFS {
-			wrappedStaticFS = GzipMiddleware(wrappedStaticFS)
+			wrappedStaticFS = NewGzipMiddleware()(wrappedStaticFS)
 		}
 
 		m.Handle(fmt.Sprintf("GET %s", normalizeStaticContentPrefix(config.StaticContentPrefix)), wrappedStaticFS)
