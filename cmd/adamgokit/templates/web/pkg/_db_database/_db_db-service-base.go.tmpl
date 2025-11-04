@@ -1,0 +1,30 @@
+package database
+
+import (
+	"context"
+	"time"
+
+	"gorm.io/gorm"
+)
+
+type DbServiceBaseConfig struct {
+	QueryTimeout time.Duration
+	DB           *gorm.DB
+	PageSize     int
+}
+
+type DbServiceBase struct {
+	QueryTimeout time.Duration
+	DB           *gorm.DB
+	PageSize     int
+}
+
+func (s DbServiceBase) GetContext() (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithTimeout(context.Background(), s.QueryTimeout)
+	return ctx, cancel
+}
+
+func (s DbServiceBase) Paging(page int) int {
+	offset := (page - 1) * s.PageSize
+	return offset
+}

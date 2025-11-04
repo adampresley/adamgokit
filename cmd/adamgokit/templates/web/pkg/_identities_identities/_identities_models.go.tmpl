@@ -1,0 +1,27 @@
+package identities
+
+import (
+	uuid "github.com/satori/go.uuid"
+	"gorm.io/gorm"
+)
+
+type User struct {
+	gorm.Model
+	ID       uuid.UUID `gorm:"type:uuid;primary_key"`
+	Email    string `gorm:"unique_index"`
+	Name     string
+	Password string
+	Role     string
+	Active   bool
+}
+
+func (u *User) BeforeCreate(tx *gorm.DB) error {
+	u.ID = uuid.NewV4()
+	tx.Set("ID", u.ID)
+	return nil
+}
+
+type UserSession struct {
+	UserID uuid.UUID
+	Email  string
+}

@@ -20,11 +20,14 @@
       <nav>
          <ul>
             <li>
-               <h1><a href="/">{{.AppName}}</a></h1>
+               <h1>
+						<a href="/"><img src="/static/images/adamgokit-rectangle.png" alt="Adam Go Kit logo" /></a>
+					</h1>
             </li>
          </ul>
 			<ul>
-				<li><a hx-get="/about" hx-push-url="true" hx-target="#mainContent">About</a></li>
+				<li><a hx-get="/about" hx-push-url="true" hx-target="#mainContent">About</a></li>{{- if .AddIdentityManagement}}
+				<li><a href="/logout">Logout</a></li>{{end}}
 			</ul>
       </nav>
    </header>

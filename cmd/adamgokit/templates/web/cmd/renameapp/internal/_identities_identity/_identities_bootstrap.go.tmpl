@@ -1,0 +1,87 @@
+package identity
+
+import (
+	"errors"
+	"fmt"
+	"log/slog"
+
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
+
+	"{{.GithubRepo}}/pkg/identities"
+)
+
+func BootstrapAdminUser(db *gorm.DB) error {
+	var (
+		err error
+		existing identities.User
+	)
+
+	if "{{.AdminUserEmail}}" == "" {
+		slog.Warn("admin user email not provided; skipping bootstrap")
+		return nil
+	}
+
+	err = db.Where("email = ?", "{{.AdminUserEmail}}").First(&existing).Error
+
+	switch {
+	case err == nil:
+		return ensureAdminFlags(db, &existing)
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		return createAdmin(db)
+	default:
+		return fmt.Errorf("error checking for admin user: %w", err)
+	}
+}
+
+func ensureAdminFlags(db *gorm.DB, admin *identities.User) error {
+	updates := map[string]any{}
+
+	if !admin.Active {
+		updates["active"] = true
+	}
+
+	if admin.Role != "admin" {
+		updates["role"] = "admin"
+	}
+
+	if len(updates) == 0 {
+		return nil
+	}
+
+	if err := db.Model(admin).Updates(updates).Error; err != nil {
+		return fmt.Errorf("error updating admin user flags: %w", err)
+	}
+
+	slog.Info("ensured admin user flags", "email", admin.Email, "updates", updates)
+	return nil
+}
+
+func createAdmin(db *gorm.DB) error {
+	hashedPassword := "{{.AdminUserPasswordHash}}"
+
+	if hashedPassword == "" {
+		generatedHash, err := bcrypt.GenerateFromPassword([]byte("{{.AdminUserPassword}}"), bcrypt.DefaultCost)
+
+		if err != nil {
+			return fmt.Errorf("error hashing admin password: %w", err)
+		}
+
+		hashedPassword = string(generatedHash)
+	}
+
+	admin := identities.User{
+		Email:    "{{.AdminUserEmail}}",
+		Name:     "Administrator",
+		Password: hashedPassword,
+		Role:     "admin",
+		Active:   true,
+	}
+
+	if err := db.Create(&admin).Error; err != nil {
+		return fmt.Errorf("error creating admin user: %w", err)
+	}
+
+	slog.Info("created admin user", "email", admin.Email)
+	return nil
+}

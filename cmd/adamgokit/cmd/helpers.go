@@ -2,33 +2,110 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"github.com/adampresley/adamgokit/slices"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type RenderConfig struct {
-	Base       string
-	AppName    string
-	GoVersion  string
-	DirName    string
-	GithubRepo string
-	DBName     string
+	Base                  string
+	AppName               string
+	DirName               string
+	GithubRepo            string
+	DBName                string
+	AddIdentityManagement bool
+	AdminUserEmail        string
+	AdminUserPassword     string
+	AdminUserPasswordHash string
+}
+
+func (rc *RenderConfig) Prepare() error {
+	if rc.AddIdentityManagement {
+		if rc.AdminUserEmail == "" {
+			return fmt.Errorf("admin user email is required when identity management is enabled")
+		}
+
+		if rc.AdminUserPassword == "" {
+			return fmt.Errorf("admin user password is required when identity management is enabled")
+		}
+
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(rc.AdminUserPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return fmt.Errorf("error hashing admin user password: %w", err)
+		}
+
+		rc.AdminUserPasswordHash = string(hashedPassword)
+	}
+
+	return nil
+}
+
+func (rc *RenderConfig) ShouldCreateDir(path string) (bool, string) {
+	base := filepath.Base(path)
+	adjusted := path
+	result := true
+
+	if strings.HasPrefix(base, "_db_") {
+		if rc.DBName == "" {
+			result = false
+		} else {
+			adjusted = strings.ReplaceAll(adjusted, "_db_", "")
+		}
+	}
+
+	if strings.HasPrefix(base, "_identities_") {
+		if !rc.AddIdentityManagement {
+			result = false
+		} else {
+			adjusted = strings.ReplaceAll(adjusted, "_identities_", "")
+		}
+	}
+
+	return result, adjusted
+}
+
+func (rc *RenderConfig) ShouldCreateFile(path string) (bool, string) {
+	base := filepath.Base(path)
+	adjusted := path
+	result := true
+
+	if strings.HasPrefix(base, "_db_") {
+		if rc.DBName == "" {
+			result = false
+		} else {
+			adjusted = strings.ReplaceAll(adjusted, "_db_", "")
+		}
+	}
+
+	if strings.HasPrefix(base, "_identities_") {
+		if !rc.AddIdentityManagement {
+			result = false
+		} else {
+			adjusted = strings.ReplaceAll(adjusted, "_identities_", "")
+		}
+	}
+
+	return result, adjusted
 }
 
 func renderTemplates(config *RenderConfig) error {
 	fs.WalkDir(_templateFS, config.Base, func(path string, d fs.DirEntry, err error) error {
 		var (
-			f *os.File
+			f            *os.File
+			shouldCreate bool
 		)
 
 		adjustedPath := strings.TrimPrefix(path, config.Base)
 
-		if strings.HasPrefix(adjustedPath, string(os.PathSeparator)) {
-			adjustedPath = strings.TrimPrefix(adjustedPath, string(os.PathSeparator))
+		if after, ok := strings.CutPrefix(adjustedPath, string(os.PathSeparator)); ok {
+			adjustedPath = after
 		}
 
 		fmt.Printf("Path: %s\n", adjustedPath)
@@ -46,13 +123,17 @@ func renderTemplates(config *RenderConfig) error {
 		 * A directory
 		 */
 		if adjustedPath != "" && d.IsDir() {
-			fmt.Printf("  creating dir '%s'... \n", adjustedPath)
+			shouldCreate, adjustedPath = config.ShouldCreateDir(adjustedPath)
 
-			newPath := filepath.Join(config.DirName, adjustedPath)
+			if shouldCreate {
+				fmt.Printf("  creating dir '%s'... \n", adjustedPath)
 
-			if err = os.MkdirAll(newPath, 0755); err != nil {
-				fmt.Printf("  error creating path '%s': %s\n", newPath, err.Error())
-				return err
+				newPath := filepath.Join(config.DirName, adjustedPath)
+
+				if err = os.MkdirAll(newPath, 0755); err != nil {
+					fmt.Printf("  error creating path '%s': %s\n", newPath, err.Error())
+					return err
+				}
 			}
 
 			return nil
@@ -62,35 +143,71 @@ func renderTemplates(config *RenderConfig) error {
 		 * Tis a file
 		 */
 		fileNameToCreate := filepath.Join(config.DirName, strings.TrimSuffix(adjustedPath, ".tmpl"))
-		templateContent, err := _templateFS.ReadFile(path)
+		shouldCreate, fileNameToCreate = config.ShouldCreateFile(fileNameToCreate)
 
-		if err != nil {
-			fmt.Printf("error reading template content for '%s': %s\n", adjustedPath, err.Error())
-			return err
+		if shouldCreate {
+			fmt.Printf("  creating file '%s'... \n", fileNameToCreate)
+
+			if shouldParseTemplate(fileNameToCreate) {
+				templateContent, err := _templateFS.ReadFile(path)
+
+				if err != nil {
+					fmt.Printf("error reading template content for '%s': %s\n", adjustedPath, err.Error())
+					return err
+				}
+
+				t, err := template.New(filepath.Base(path)).Parse(string(templateContent))
+
+				if err != nil {
+					fmt.Printf("error parsing template '%s': %s\n", path, err.Error())
+					return err
+				}
+
+				if f, err = os.Create(fileNameToCreate); err != nil {
+					fmt.Printf("error opening '%s' for creation: %s\n", adjustedPath, err.Error())
+					return err
+				}
+
+				defer f.Close()
+
+				if err = t.Execute(f, config); err != nil {
+					fmt.Printf("error rendering template to file '%s': %s\n", adjustedPath, err.Error())
+					return err
+				}
+			} else {
+				existingFile, err := _templateFS.Open(path)
+
+				if err != nil {
+					fmt.Printf("error reading file '%s': %s\n", path, err.Error())
+					return err
+				}
+
+				if f, err = os.Create(fileNameToCreate); err != nil {
+					fmt.Printf("error opening '%s' for creation: %s\n", adjustedPath, err.Error())
+					return err
+				}
+
+				defer f.Close()
+
+				if _, err = io.Copy(f, existingFile); err != nil {
+					fmt.Printf("error copying file '%s' to '%s': %s\n", path, fileNameToCreate, err.Error())
+				}
+			}
 		}
 
-		t, err := template.New(filepath.Base(path)).Parse(string(templateContent))
-
-		if err != nil {
-			fmt.Printf("error parsing template '%s': %s\n", path, err.Error())
-			return err
-		}
-
-		if f, err = os.Create(fileNameToCreate); err != nil {
-			fmt.Printf("error opening '%s' for creation: %s\n", adjustedPath, err.Error())
-			return err
-		}
-
-		defer f.Close()
-
-		if err = t.Execute(f, config); err != nil {
-			fmt.Printf("error rendering template to file '%s': %s\n", adjustedPath, err.Error())
-			return err
-		}
 		return nil
 	})
 
 	return nil
+}
+
+func shouldParseTemplate(fileNameToCreate string) bool {
+	dont := []string{
+		".png", ".jpg", ".jpeg", ".svg", ".gif", ".ico", ".pdf",
+	}
+
+	ext := strings.ToLower(filepath.Ext(fileNameToCreate))
+	return !slices.IsInSlice(ext, dont)
 }
 
 func renameCmdAppFolder(config *RenderConfig) error {
@@ -98,21 +215,6 @@ func renameCmdAppFolder(config *RenderConfig) error {
 		filepath.Join("./", config.DirName, "cmd", "renameapp"),
 		filepath.Join("./", config.DirName, "cmd", config.DirName),
 	)
-}
-
-func goModInit(config *RenderConfig) error {
-	cmd := exec.Command("go", "mod", "init", config.GithubRepo)
-	cmd.Dir = filepath.Join("./", config.DirName)
-
-	b, err := cmd.Output()
-
-	fmt.Printf("%s\n", string(b))
-
-	if err != nil {
-		return fmt.Errorf("error running go mod init: %w", err)
-	}
-
-	return nil
 }
 
 func goModTidy(config *RenderConfig) error {

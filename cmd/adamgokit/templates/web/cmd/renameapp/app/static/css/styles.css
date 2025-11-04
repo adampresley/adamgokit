@@ -21,3 +21,40 @@ article.warning {
 	background-color: #fff8e1;
 	color: #ff6f00;
 }
+
+/*
+ * Header 
+ */
+header {
+	&.top-header {
+		nav {
+			ul {
+				li {
+					h1 {
+						a {
+							img {
+								max-height: 3.5rem;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+/*
+ * Call to action
+ */
+.call-to-action {
+	margin-bottom: 2rem;
+	padding: 2rem;
+	border: 1px solid var(--pico-accordion-border-color);
+	border-radius: 10px;
+	background-color: var(--pico-card-background-color);
+
+	img {
+		max-height: 15rem;
+		margin-bottom: 1rem;
+	}
+}

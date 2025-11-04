@@ -3,10 +3,8 @@ package home
 import (
 	"net/http"
 
-	"github.com/adampresley/adamgokit/httphelpers"
 	"github.com/adampresley/adamgokit/rendering"
 	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/configuration"
-	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/viewmodels"
 )
 
 type HomeHandlers interface {
@@ -29,32 +27,4 @@ func NewHomeController(config HomeControllerConfig) HomeController {
 		config:   config.Config,
 		renderer: config.Renderer,
 	}
-}
-
-func (c HomeController) HomePage(w http.ResponseWriter, r *http.Request) {
-	pageName := "pages/home"
-
-	viewData := viewmodels.Home{
-		BaseViewModel: viewmodels.BaseViewModel{
-			Message:            "",
-			IsHtmx:             httphelpers.IsHtmx(r),
-			JavascriptIncludes: []rendering.JavascriptInclude{},
-		},
-	}
-
-	c.renderer.Render(pageName, viewData, w)
-}
-
-func (c HomeController) AboutPage(w http.ResponseWriter, r *http.Request) {
-	pageName := "pages/about"
-
-	viewData := viewmodels.About{
-		BaseViewModel: viewmodels.BaseViewModel{
-			Message:            "",
-			IsHtmx:             httphelpers.IsHtmx(r),
-			JavascriptIncludes: []rendering.JavascriptInclude{},
-		},
-	}
-
-	c.renderer.Render(pageName, viewData, w)
 }

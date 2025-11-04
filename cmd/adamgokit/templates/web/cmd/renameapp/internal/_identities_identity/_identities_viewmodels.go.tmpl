@@ -1,0 +1,9 @@
+package identity
+
+import "{{.GithubRepo}}/cmd/{{.AppName}}/internal/viewmodels"
+
+type LoginPage struct {
+	viewmodels.BaseViewModel
+	Email    string
+	Password string
+}

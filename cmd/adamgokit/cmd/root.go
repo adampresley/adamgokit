@@ -33,10 +33,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	GO_VERSION = "1.23.3"
-)
-
 var _templateFS embed.FS
 
 // rootCmd represents the base command when called without any subcommands
@@ -47,12 +43,15 @@ var rootCmd = &cobra.Command{
 It provides flags for additional add-ons, like CSS and JS frameworks.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var (
-			err              error
-			appName          string
-			githubPath       string
-			selectedTemplate string
-			wantDB           bool
-			dbName           string
+			err                   error
+			appName               string
+			githubPath            string
+			selectedTemplate      string
+			wantDB                bool
+			dbName                string
+			addIdentityManagement bool
+			adminUserEmail        string
+			adminUserPassword     string
 		)
 
 		appTemplateOptions := []string{
@@ -81,15 +80,28 @@ It provides flags for additional add-ons, like CSS and JS frameworks.`,
 			}
 		}
 
+		if selectedTemplate == "Web" && wantDB {
+			addIdentityManagement, _ = pterm.DefaultInteractiveConfirm.Show("\nDo you want to add identity management?\n")
+
+			if addIdentityManagement {
+				pterm.Printf("Enter admin user email:\n")
+				adminUserEmail, _ = pterm.DefaultInteractiveTextInput.Show()
+				pterm.Printf("Enter admin user password:\n")
+				adminUserPassword, _ = pterm.DefaultInteractiveTextInput.Show()
+			}
+		}
+
 		pterm.Printf("\nCreating '%s' app '%s' with repository '%s'...\n", selectedTemplate, appName, githubPath)
 
 		config := &RenderConfig{
-			AppName:    appName,
-			GoVersion:  GO_VERSION,
-			Base:       fmt.Sprintf("templates/%s", strings.ToLower(strings.ReplaceAll(selectedTemplate, " ", ""))),
-			DirName:    appName,
-			GithubRepo: githubPath,
-			DBName:     dbName,
+			AppName:               appName,
+			Base:                  fmt.Sprintf("templates/%s", strings.ToLower(strings.ReplaceAll(selectedTemplate, " ", ""))),
+			DirName:               appName,
+			GithubRepo:            githubPath,
+			DBName:                dbName,
+			AddIdentityManagement: addIdentityManagement,
+			AdminUserEmail:        adminUserEmail,
+			AdminUserPassword:     adminUserPassword,
 		}
 
 		if err = buildApp(config); err != nil {
@@ -103,6 +115,10 @@ func buildApp(config *RenderConfig) error {
 	var (
 		err error
 	)
+
+	if err = config.Prepare(); err != nil {
+		return fmt.Errorf("error preparing render config: %w", err)
+	}
 
 	if err = renderTemplates(config); err != nil {
 		return fmt.Errorf("error rendering application templates: %w", err)

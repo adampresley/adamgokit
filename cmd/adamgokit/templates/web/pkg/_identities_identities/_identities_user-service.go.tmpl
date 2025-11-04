@@ -1,0 +1,75 @@
+package identities
+
+import (
+	"errors"
+	"fmt"
+
+	"gorm.io/gorm"
+	"{{.GithubRepo}}/pkg/database"
+)
+
+var (
+	ErrUserNotFound = errors.New("user not found")
+)
+
+type UserServicer interface {
+	/*
+	   GetUserByEmail retrieves an active user account by their email address.
+	*/
+	GetUserByEmail(email string, options ...UserQueryOption) (*User, error)
+}
+
+type UserServiceConfig struct {
+	database.DbServiceBaseConfig
+}
+
+type UserService struct {
+	database.DbServiceBase
+}
+
+func NewUserService(config UserServiceConfig) UserService {
+	return UserService{
+		DbServiceBase: database.DbServiceBase{
+			QueryTimeout: config.QueryTimeout,
+			DB:           config.DB,
+			PageSize:     config.PageSize,
+		},
+	}
+}
+
+/*
+GetUserByEmail retrieves an active user account by their email address.
+*/
+func (s UserService) GetUserByEmail(email string, options ...UserQueryOption) (*User, error) {
+	var (
+		err     error
+		result *User
+	)
+
+	opts := UserQueryOptions{}
+
+	for _, option := range options {
+		option(opts)
+	}
+
+	tx := gorm.G[*User](s.DB).Where("email=?", email)
+
+	for key, value := range opts {
+		tx = tx.Where(key, value)
+	}
+
+	ctx, cancel := s.GetContext()
+	defer cancel()
+
+	result, err = tx.First(ctx)
+
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrUserNotFound
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving user by email: %w", err)
+	}
+
+	return result, nil
+}

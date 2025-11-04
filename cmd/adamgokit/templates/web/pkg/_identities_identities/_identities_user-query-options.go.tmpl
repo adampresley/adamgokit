@@ -1,0 +1,11 @@
+package identities
+
+type UserQueryOption func(o UserQueryOptions)
+
+type UserQueryOptions map[string][]any
+
+func WithOnlyActiveUsers() UserQueryOption {
+	return func(o UserQueryOptions) {
+		o["active"] = []any{true}
+	}
+}

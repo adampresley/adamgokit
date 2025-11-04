@@ -1,8 +1,5 @@
 FILES_TO_UPDATE = \
-    cmd/adamgokit/README.md \
-    cmd/adamgokit/templates/basic/go.mod.tmpl \
-    cmd/adamgokit/templates/restapi/go.mod.tmpl \
-    cmd/adamgokit/templates/web/go.mod.tmpl
+    cmd/adamgokit/README.md
 
 CURRENT_VERSION := $(shell grep 'adampresley/adamgokit' cmd/adamgokit/templates/basic/go.mod.tmpl | awk '{print $$2}' | sed 's/v//')
 NEW_MINOR_VERSION := $(shell echo $(CURRENT_VERSION) | awk -F. '{print $$1"."$$2+1".0"}')

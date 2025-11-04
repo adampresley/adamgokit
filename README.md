@@ -1,5 +1,7 @@
 # Adam's Go Kit
 
+![Adam Go Kit](./adamgokit-square.png)
+
 This is simply a collection of Go libraries, wrappers, helpers, and so on
 that I use all the time.
 

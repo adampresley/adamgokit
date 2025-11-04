@@ -1,0 +1,155 @@
+package identity
+
+import (
+	"errors"
+	"html/template"
+	"log/slog"
+	"net/http"
+
+	"github.com/adampresley/adamgokit/auth2"
+	"github.com/adampresley/adamgokit/httphelpers"
+	"github.com/adampresley/adamgokit/rendering"
+	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/configuration"
+	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/viewmodels"
+	"{{.GithubRepo}}/pkg/identities"
+	"golang.org/x/crypto/bcrypt"
+)
+
+type IdentityHandlers interface {
+	LoginPage(w http.ResponseWriter, r *http.Request)
+	LoginAction(w http.ResponseWriter, r *http.Request)
+	LogoutAction(w http.ResponseWriter, r *http.Request)
+}
+
+type IdentityControllerConfig struct {
+	Auth        auth2.Authenticator[*identities.UserSession]
+	Config      *configuration.Config
+	Renderer    rendering.TemplateRenderer
+	UserService identities.UserServicer
+}
+
+type IdentityController struct {
+	auth        auth2.Authenticator[*identities.UserSession]
+	config      *configuration.Config
+	renderer    rendering.TemplateRenderer
+	userService identities.UserServicer
+}
+
+func NewIdentityController(config IdentityControllerConfig) IdentityController {
+	return IdentityController{
+		auth:        config.Auth,
+		config:      config.Config,
+		renderer:    config.Renderer,
+		userService: config.UserService,
+	}
+}
+
+/*
+GET /login
+*/
+func (c IdentityController) LoginPage(w http.ResponseWriter, r *http.Request) {
+	pageName := "pages/login"
+
+	viewData := LoginPage{
+		BaseViewModel: viewmodels.BaseViewModel{
+			IsHtmx:  httphelpers.IsHtmx(r),
+			Message: template.HTML(httphelpers.GetFromRequest[string](r, "message")),
+			JavascriptIncludes: []rendering.JavascriptInclude{
+				{Src: "/static/js/pages/login.js", Type: "module"},
+			},
+		},
+
+		Email:    httphelpers.GetFromRequest[string](r, "email"),
+		Password: "",
+	}
+
+	c.renderer.Render(pageName, viewData, w)
+}
+
+/*
+POST /login
+*/
+func (c IdentityController) LoginAction(w http.ResponseWriter, r *http.Request) {
+	var (
+		err  error
+		user *identities.User
+	)
+
+	pageName := "pages/login"
+
+	viewData := LoginPage{
+		BaseViewModel: viewmodels.BaseViewModel{
+			IsHtmx:  httphelpers.IsHtmx(r),
+			Message: template.HTML(httphelpers.GetFromRequest[string](r, "message")),
+			JavascriptIncludes: []rendering.JavascriptInclude{
+				{Src: "/static/js/pages/login.js", Type: "module"},
+			},
+		},
+
+		Email:    httphelpers.GetFromRequest[string](r, "email"),
+		Password: httphelpers.GetFromRequest[string](r, "password"),
+	}
+
+	/*
+	 * Get the user by email.
+	 */
+	user, err = c.userService.GetUserByEmail(viewData.Email, identities.WithOnlyActiveUsers())
+
+	if err != nil {
+		/*
+		 * User not found
+		 */
+		if errors.Is(err, identities.ErrUserNotFound) {
+			viewData.Message = "Invalid email address or password"
+			viewData.IsError = true
+
+			c.renderer.Render(pageName, viewData, w)
+			return
+		}
+
+		/*
+		 * An unexpected error
+		 */
+		slog.Error("an error occurred while retrieving the user", "error", err)
+		viewData.Message = "We are sorry, but an unexpected error occurred. Please try again later."
+		viewData.IsError = true
+
+		c.renderer.Render(pageName, viewData, w)
+		return
+	}
+
+	/*
+	 * Validate the password.
+	 */
+	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(viewData.Password)); err != nil {
+		viewData.Message = "Invalid email address or password"
+		viewData.IsError = true
+
+		c.renderer.Render(pageName, viewData, w)
+		return
+	}
+
+	/*
+	 * All is good. Create the session and redirect to the home page
+	 */
+	sessionValue := &identities.UserSession{
+		UserID:    user.ID,
+		Email:     user.Email,
+	}
+
+	if err = c.auth.SaveSession(w, r, sessionValue); err != nil {
+		slog.Error("an error occurred while saving the session", "error", err, "userID", user.ID)
+		viewData.Message = "We are sorry, but an unexpected error occurred. Please try again later."
+		viewData.IsError = true
+
+		c.renderer.Render(pageName, viewData, w)
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (c IdentityController) LogoutAction(w http.ResponseWriter, r *http.Request) {
+	_ = c.auth.DestroySession(w, r)
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}

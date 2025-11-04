@@ -27,7 +27,7 @@ import (
 	"github.com/adampresley/adamgokit/cmd/adamgokit/cmd"
 )
 
-//go:embed templates
+//go:embed all:templates
 var templateFS embed.FS
 
 func main() {

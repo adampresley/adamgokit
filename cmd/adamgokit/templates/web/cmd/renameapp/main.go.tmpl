@@ -4,15 +4,24 @@ import (
 	"embed"
 	"log/slog"
 	"net/http"
+	{{- if .DBName}}
+	"os"{{end}}{{- if .AddIdentityManagement}}
+	"time"
+	"encoding/gob"{{end}}
 
 	"github.com/adampresley/adamgokit/httphelpers"
 	"github.com/adampresley/adamgokit/mux"
 	"github.com/adampresley/adamgokit/rendering"
 	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/configuration"
 	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/home"{{- if .DBName}}
-	_ "github.com/glebarez/sqlite"
-	"github.com/rfberaldo/sqlz"
-	"github.com/rfberaldo/sqlz/binds"{{end}}
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"{{- if .AddIdentityManagement}}
+	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/identity"
+	"github.com/adampresley/adamgokit/sessions"
+	"github.com/adampresley/adamgokit/auth2"
+	"{{.GithubRepo}}/pkg/identities"
+	"{{.GithubRepo}}/pkg/database"{{end}}
+	{{end}}
 )
 
 var (
@@ -23,45 +32,104 @@ var (
 	appFS embed.FS
 
 	/* Services */{{- if .DBName}}
-	db       *sqlz.DB{{end}}
-	renderer rendering.TemplateRenderer
+	db       *gorm.DB{{end}}
+	renderer rendering.TemplateRenderer{{if .AddIdentityManagement}}
+	sessionService sessions.Session[*identities.User]
+	userService    identities.UserServicer{{end}}
 
 	/* Controllers */
-	homeController home.HomeHandlers
+	homeController     home.HomeHandlers{{if .AddIdentityManagement}}
+	identityController identity.IdentityHandlers{{end}}
 )
 
-func main() { {{- if .DBName}}
+func main() { 
 	var (
 		err error
 	)
-{{end}}
+
 	config := configuration.LoadConfig()
 	setupLogger(&config, Version)
 
 	slog.Info("configuration loaded",
-		slog.String("app", appName),
-		slog.String("version", Version),
-		slog.String("loglevel", config.LogLevel),
-		slog.String("host", config.Host),
+		"app", appName,
+		"version", Version,
+		"loglevel", config.LogLevel,
+		"host", config.Host,
 	)
 
 	slog.Debug("setting up..."){{- if .DBName}}
 
-	binds.Register("sqlite", binds.BindByDriver("sqlite3"))
-	if db, err = sqlz.Connect("sqlite", config.DSN); err != nil {
+	/*
+	 * Setup database
+	 */
+	if err = os.MkdirAll("./data", 0755); err != nil {
 		panic(err)
-	}{{end}}
+	}
+
+	if db, err = gorm.Open(sqlite.Open(config.DSN)); err != nil {
+		panic(err)
+	}
+
+	if err = migrateDatabase(db); err != nil {
+		panic(err)
+	}{{if .AddIdentityManagement}}
+
+	if Version == "development" {
+		if err = identity.BootstrapAdminUser(db); err != nil {
+			panic(err)
+		}
+	}{{end}}{{end}}{{if .AddIdentityManagement}}
+
+	gob.Register(&identities.UserSession{})
+
+	cookieStore := sessions.NewCookieStore(
+		config.CookieSecret,
+		sessions.WithMaxAge(time.Hour*24),
+	)
+
+	auth := auth2.New(
+		auth2.UserNameAndPassword[*identities.UserSession](
+			cookieStore,
+			"{{.AppName}}",
+			"user",
+			auth2.WithContextKey("session"),
+			auth2.WithExcludedPaths([]string{
+				"/error",
+				"/login",
+				"/account/sign-up",
+				"/account/sign-up-success",
+				"/account/verify",
+			}),
+			auth2.WithRedirectURL("/login"),
+			auth2.WithErrorFunc(func(w http.ResponseWriter, r *http.Request, err error) {
+				http.Redirect(w, r, "/error?message="+err.Error(), http.StatusSeeOther)
+			}),
+		),
+	)
+
+	{{end}}
 
 	/*
 	 * Setup services
 	 */
-	renderer = rendering.NewGoTemplateRenderer(rendering.GoTemplateRendererConfig{
+	renderer, err = rendering.NewGoTemplateRenderer(rendering.GoTemplateRendererConfig{
 		TemplateDir:       "app",
 		TemplateExtension: ".html",
 		TemplateFS:        appFS,
-		LayoutsDir:        "layouts",
-		ComponentsDir:     "components",
+		PagesDir:          "pages",
 	})
+
+	if err != nil {
+		panic(err)
+	}{{if .AddIdentityManagement}}
+
+	userService = identities.NewUserService(identities.UserServiceConfig{
+		DbServiceBaseConfig: database.DbServiceBaseConfig{
+			QueryTimeout: 5 * time.Second,
+			DB:           db,
+			PageSize:     config.PageSize,
+		},
+	}){{end}}
 
 	/*
 	 * Setup controllers
@@ -69,7 +137,14 @@ func main() { {{- if .DBName}}
 	homeController = home.NewHomeController(home.HomeControllerConfig{
 		Config:   &config,
 		Renderer: renderer,
-	})
+	}){{- if .AddIdentityManagement}}
+
+	identityController = identity.NewIdentityController(identity.IdentityControllerConfig{
+		Auth:        auth,
+		Config:      &config,
+		Renderer:    renderer,
+		UserService: userService,
+	}){{end}}
 
 	/*
 	 * Setup router and http server
@@ -79,7 +154,10 @@ func main() { {{- if .DBName}}
 	routes := []mux.Route{
 		{Path: "GET /heartbeat", HandlerFunc: heartbeat},
 		{Path: "GET /", HandlerFunc: homeController.HomePage},
-		{Path: "GET /about", HandlerFunc: homeController.AboutPage},
+		{Path: "GET /about", HandlerFunc: homeController.AboutPage},{{- if .AddIdentityManagement}}
+		{Path: "GET /login", HandlerFunc: identityController.LoginPage},
+		{Path: "POST /login", HandlerFunc: identityController.LoginAction},
+		{Path: "GET /logout", HandlerFunc: identityController.LogoutAction},{{end}}
 	}
 
 	routerConfig := mux.RouterConfig{
@@ -89,6 +167,8 @@ func main() { {{- if .DBName}}
 		StaticContentRootDir: "app",
 		StaticContentPrefix:  "/static/",
 		StaticFS:             appFS,
+		Middlewares:          []mux.MiddlewareFunc{ {{if .AddIdentityManagement}}auth.Middleware{{end}}},
+		//Middlewares:          []mux.MiddlewareFunc{ {{if .AddIdentityManagement}}auth.Middleware, {{end}}mux.GzipMiddleware},
 	}
 
 	m := mux.SetupRouter(routerConfig, routes)
@@ -106,4 +186,10 @@ func main() { {{- if .DBName}}
 
 func heartbeat(w http.ResponseWriter, r *http.Request) {
 	httphelpers.TextOK(w, "OK")
-}
+}{{if .DBName}}
+
+func migrateDatabase(db *gorm.DB) error {
+	return db.AutoMigrate({{- if.AddIdentityManagement}}
+		&identities.User{},{{end}}
+	)
+}{{end}}

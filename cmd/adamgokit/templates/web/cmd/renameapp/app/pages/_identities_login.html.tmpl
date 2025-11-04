@@ -1,0 +1,49 @@
+{{`{{if .IsHtmx}}`}}
+{{`{{template "layouts/no-layout" .}}`}}
+{{`{{else}}`}}
+{{`{{template "layouts/login-layout" .}}`}}
+{{`{{end}}`}}
+
+{{`{{define "title"}}Log In{{end}}`}}
+{{`{{define "content"}}`}}
+
+<header class="call-to-action">
+   <h1 alt="Welcome">
+		<img src="/static/images/adamgokit-square.png" alt="Adam Go Kit logo" />
+   </h1>
+
+   <h2>Welcome</h2>
+
+   <p>Describe your product! Call to action!</p>
+   <p>Maybe do a sign up here!</p>
+</header>
+
+<h2>Log In</h2>
+
+{{`{{template "components/display-messages" .}}`}}
+
+<p>
+   Log in using your email address and password
+   below. 
+</p>
+
+<form name="loginForm" id="loginForm" method="POST" action="/login">
+   <fieldset>
+      <label>
+         Email Address
+         <input name="email" id="email" type="email" maxlength="255" value="{{`{{.Email}}`}}" autocomplete="email" required />
+			
+         <small id="invalid-email">The email address for your account</small>
+      </label>
+
+      <label>
+         Password
+         <input name="password" id="password" type="password" minlength="5" maxlength="50" required />
+         <small id="invalid-password">Your account password</small>
+      </label>
+   </fieldset>
+
+   <input id="submit" type="submit" value="Log In" />
+</form>
+
+{{`{{end}}`}}

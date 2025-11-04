@@ -1,0 +1,22 @@
+package home
+
+import (
+	"net/http"
+
+	"github.com/adampresley/adamgokit/httphelpers"
+	"github.com/adampresley/adamgokit/rendering"
+	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/viewmodels"
+)
+
+func (c HomeController) HomePage(w http.ResponseWriter, r *http.Request) {
+	pageName := "pages/home"
+
+	viewData := HomePage{
+		BaseViewModel: viewmodels.BaseViewModel{
+			IsHtmx:             httphelpers.IsHtmx(r),
+			JavascriptIncludes: []rendering.JavascriptInclude{},
+		},
+	}
+
+	c.renderer.Render(pageName, viewData, w)
+}
