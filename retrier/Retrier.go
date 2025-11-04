@@ -12,10 +12,9 @@ func Retry(fn func() error, options ...Option) error {
 	)
 
 	opts := &Options{
-		Delay:                time.Second * 5,
-		MaxAttempts:          3,
-		MaxJitter:            300,
-		MaxJitterMeasurement: time.Millisecond,
+		Delay:       time.Second * 2,
+		MaxAttempts: 3,
+		MaxJitter:   300 * time.Millisecond,
 	}
 
 	for _, opt := range options {
@@ -31,7 +30,7 @@ func Retry(fn func() error, options ...Option) error {
 			return nil
 		}
 
-		sleepDuration := opts.Delay + (time.Duration(rand.Intn(opts.MaxJitter)) * opts.MaxJitterMeasurement)
+		sleepDuration := (opts.Delay * time.Duration(attempt+1)) * time.Duration(rand.Intn(int(opts.MaxJitter)))
 		time.Sleep(sleepDuration)
 	}
 
@@ -39,10 +38,9 @@ func Retry(fn func() error, options ...Option) error {
 }
 
 type Options struct {
-	Delay                time.Duration
-	MaxAttempts          int
-	MaxJitter            int
-	MaxJitterMeasurement time.Duration
+	Delay       time.Duration
+	MaxAttempts int
+	MaxJitter   time.Duration
 }
 
 type Option func(o *Options)
@@ -59,14 +57,8 @@ func WithMaxAttempts(attempts int) Option {
 	}
 }
 
-func WithMaxJitter(jitter int) Option {
+func WithMaxJitter(jitter time.Duration) Option {
 	return func(o *Options) {
 		o.MaxJitter = jitter
-	}
-}
-
-func WithMaxJitterMeasurement(measurement time.Duration) Option {
-	return func(o *Options) {
-		o.MaxJitterMeasurement = measurement
 	}
 }
