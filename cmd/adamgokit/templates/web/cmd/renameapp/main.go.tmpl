@@ -167,8 +167,7 @@ func main() {
 		StaticContentRootDir: "app",
 		StaticContentPrefix:  "/static/",
 		StaticFS:             appFS,
-		Middlewares:          []mux.MiddlewareFunc{ {{if .AddIdentityManagement}}auth.Middleware{{end}}},
-		//Middlewares:          []mux.MiddlewareFunc{ {{if .AddIdentityManagement}}auth.Middleware, {{end}}mux.GzipMiddleware},
+		Middlewares:          []mux.MiddlewareFunc{ {{if .AddIdentityManagement}}auth.Middleware, {{end}}mux.NewGzipMiddleware()},
 	}
 
 	m := mux.SetupRouter(routerConfig, routes)

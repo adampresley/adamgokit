@@ -22,3 +22,7 @@ packages:
       config:
          all: true
          recursive: true
+   github.com/adampresley/adamgokit/sse:
+      config:
+         all: true
+         recursive: true

@@ -19,6 +19,7 @@ that I use all the time.
 - [Retrier](retrier/README.md)
 - [Sessions](sessions/README.md)
 - [Slices](slices/README.md)
+- [SSE](/sse/README.md)
 - [Waiter](waiter/README.md)
 
 ## TUI Skeleton App
