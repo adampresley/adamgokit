@@ -11,7 +11,8 @@ that uses this component for rendering an HTTP route. This example makes
 a few assumtions:
 
 - You have a directory named "app" in the root of your application
-- You have the files _layouts/layout.html_ and _pages/index.html_
+- You have a subdirectory under "app" named "static"
+- You have the files _layouts/layout.html_ and _pages/index.html_ under "app"
 
 Here are the layout and index pages respectively.
 
@@ -96,14 +97,10 @@ func main() {
     err error
   )
 
-  renderer, err = rendering.NewGoTemplateRenderer(rendering.GoTemplateRendererConfig{
-    TemplateDir:       "app",
-    TemplateExtension: ".html",
-    TemplateFS:        appFS,
-    PagesDir:          "pages",
-  })
+  shutdownCtx, stopApp := context.WithCancel(context.Background())
 
-  if err != nil {
+  // INITIALIZE the renderer using default values
+  if renderer, err = rendering.NewGoTemplateRenderer(appFS); err != nil {
     panic(err)
   }
 
@@ -111,15 +108,16 @@ func main() {
     {Path: "GET /", Handler: http.HandlerFunc(getIndex)},
   }
 
-  routerConfig := mux.RouterConfig{
-    Address: "localhost:8080",
-  }
+  mux := mux2.Setup(
+    &config, // This would be a struct that embeds mux.MuxConfig
+    routes,
+    shutdownCtx,
+    stopApp,
 
-  m := mux.SetupRouter(routerConfig, routes)
-  httpServer, quit := mux.SetupServer(routerConfig, m)
+    mux2.WithStaticContent("app", "/static/", appFS),
+  )
 
-  <-quit
-  mux.Shutdown(httpServer)
+  mux.Start()
 }
 
 func getIndex(w http.ResponseWriter, r *http.Request) {
@@ -137,10 +135,10 @@ func getIndex(w http.ResponseWriter, r *http.Request) {
 
 The basic requirements of configuring the Go template renderer are:
 
-- Template directory - The directory where Go template files live
-- Template extension - The extension for Go template files
+- Template directory - The directory where Go template files live. 
+- Template extension - The extension for Go template files. The default for this is **.html**
 - Template filesystem - A filesystem reference for Go template files
-- Pages directory - The name of the directory that houses pages. Pages can reference other templates like layouts, components, and partials. Those should be in a different directory.
+- Pages directory - The name of the directory that houses pages. Pages can reference other templates like layouts, components, and partials. Those should be in a different directory. The default for this is **pages**
 
 A good layout might look like this:
 
@@ -165,19 +163,33 @@ you can use in your templates. These include:
   function also handles HTML templates, and automatically trims spaces.
   `{{if (stringNotEmpty .SomeString)}}`
 
-If you wish to include additional functions, you can add it to the
-renderer configuration.
+### Additional Options
+
+You can customize some behaviors of this component during initalization by passing option functions. Here is an example of adding additional functions to the renderer.
 
 ```go
 moreFuncs := template.FuncMap{
   "newFunc": // func goes here...
 }
 
-renderer = rendering.NewGoTemplateRenderer(rendering.GoTemplateRendererConfig{
-  AdditionalFunc:    moreFuncs,
-  TemplateDir:       "app",
-  TemplateExtension: ".html",
-  TemplateFS:        appFS,
-  PagesDir:          "pages",
-})
+renderer, err = rendering.NewGoTemplateRenderer(
+  appFS,
+  rendering.WithFuncs(moreFuncs),
+)
 ```
+
+#### Template Functions
+
+Call `WithFuncs(funcs)`. **funcs** is a _template.FuncMap_.
+
+#### Pages directory
+
+Call `PagesDir(dir)`. **dir** is a string with the relative subdirectory of your root filesystem directory.
+
+#### Template directory
+
+Call `TemplateDir(dir)`. **dir** is a string with the relative subdirectory of your root filesystem directory.
+
+#### Template extension
+
+Call `TemplateExtension(ext)`. **ext** is a string with the extension to use for template files (including the period).

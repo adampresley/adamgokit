@@ -10,7 +10,6 @@ import (
 	"github.com/adampresley/adamgokit/httphelpers"
 	"github.com/adampresley/adamgokit/rendering"
 	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/configuration"
-	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/viewmodels"
 	"{{.GithubRepo}}/pkg/identities"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -51,7 +50,7 @@ func (c IdentityController) LoginPage(w http.ResponseWriter, r *http.Request) {
 	pageName := "pages/login"
 
 	viewData := LoginPage{
-		BaseViewModel: viewmodels.BaseViewModel{
+		BaseViewModel: rendering.BaseViewModel{
 			IsHtmx:  httphelpers.IsHtmx(r),
 			Message: template.HTML(httphelpers.GetFromRequest[string](r, "message")),
 			JavascriptIncludes: []rendering.JavascriptInclude{
@@ -78,7 +77,7 @@ func (c IdentityController) LoginAction(w http.ResponseWriter, r *http.Request) 
 	pageName := "pages/login"
 
 	viewData := LoginPage{
-		BaseViewModel: viewmodels.BaseViewModel{
+		BaseViewModel: rendering.BaseViewModel{
 			IsHtmx:  httphelpers.IsHtmx(r),
 			Message: template.HTML(httphelpers.GetFromRequest[string](r, "message")),
 			JavascriptIncludes: []rendering.JavascriptInclude{

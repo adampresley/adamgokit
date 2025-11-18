@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"log/slog"
 	"net/http"
@@ -48,6 +49,7 @@ func main() {
 	)
 
 	config := configuration.LoadConfig()
+	shutdownCtx, stopApp := context.WithCancel(context.Background())
 	setupLogger(&config, Version)
 
 	slog.Info("configuration loaded",
@@ -112,14 +114,7 @@ func main() {
 	/*
 	 * Setup services
 	 */
-	renderer, err = rendering.NewGoTemplateRenderer(rendering.GoTemplateRendererConfig{
-		TemplateDir:       "app",
-		TemplateExtension: ".html",
-		TemplateFS:        appFS,
-		PagesDir:          "pages",
-	})
-
-	if err != nil {
+	if renderer, err = rendering.NewGoTemplateRenderer(appFS); err != nil {
 		panic(err)
 	}{{if .AddIdentityManagement}}
 
@@ -160,26 +155,23 @@ func main() {
 		{Path: "GET /logout", HandlerFunc: identityController.LogoutAction},{{end}}
 	}
 
-	routerConfig := mux.RouterConfig{
-		Address:              config.Host,
-		Debug:                Version == "development",
-		ServeStaticContent:   true,
-		StaticContentRootDir: "app",
-		StaticContentPrefix:  "/static/",
-		StaticFS:             appFS,
-		Middlewares:          []mux.MiddlewareFunc{ {{if .AddIdentityManagement}}auth.Middleware, {{end}}mux.NewGzipMiddleware()},
-	}
+	mux := mux2.Setup(
+		&config,
+		routes,
+		shutdownCtx,
+		stopApp,
 
-	m := mux.SetupRouter(routerConfig, routes)
-	httpServer, quit := mux.SetupServer(routerConfig, m)
+		mux2.WithStaticContent("app", "/static/", appFS),
+		mux2.UseGzip(),
+		mux2.UseGzipForStaticFiles(),
+		mux2.WithDebug(Version == "development"),
+	)
 
 	/*
-	 * Wait for graceful shutdown
+	 * Start the server. Wait for graceful shutdown.
 	 */
 	slog.Info("server started")
-
-	<-quit
-	mux.Shutdown(httpServer)
+	mux.Start()
 	slog.Info("server stopped")
 }
 

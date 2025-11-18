@@ -1,13 +1,17 @@
 package configuration
 
-import "github.com/adampresley/configinator"
+import (
+	"github.com/adampresley/adamgokit/mux2"
+	"github.com/adampresley/configinator"
+)
 
-type Config struct { {{- if .AddIdentityManagement}}
-	CookieSecret           string `flag:"cookiesecret" env:"COOKIE_SECRET" default:"password" description:"Secret for encoding coodies"`{{end}}{{- if .DBName}}
-	DSN      string `flag:"dsn" env:"DSN" default:"file:./data/{{.AppName}}.db" description:"Database connection"`{{end}}
-	Host     string `flag:"host" env:"HOST" default:"localhost:8081" description:"The address and port to bind the HTTP server to"`
-	LogLevel string `flag:"loglevel" env:"LOG_LEVEL" default:"debug" description:"The log level to use. Valid values are 'debug', 'info', 'warn', and 'error'"`
-	PageSize int    `flag:"pagesize" env:"PAGE_SIZE" default:"10" description:"The number of items to display per page"`
+type Config struct { 
+	mux2.Config{{- if .AddIdentityManagement}}
+
+	CookieSecret string `flag:"cookiesecret" env:"COOKIE_SECRET" default:"password" description:"Secret for encoding coodies"`{{end}}{{- if .DBName}}
+	DSN          string `flag:"dsn" env:"DSN" default:"file:./data/{{.AppName}}.db" description:"Database connection"`{{end}}
+	LogLevel     string `flag:"loglevel" env:"LOG_LEVEL" default:"debug" description:"The log level to use. Valid values are 'debug', 'info', 'warn', and 'error'"`
+	PageSize     int    `flag:"pagesize" env:"PAGE_SIZE" default:"10" description:"The number of items to display per page"`
 }
 
 func LoadConfig() Config {

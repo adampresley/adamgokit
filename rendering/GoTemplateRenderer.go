@@ -13,43 +13,30 @@ import (
 	"strings"
 )
 
-type GoTemplateRendererConfig struct {
-	AdditionalFuncs   template.FuncMap
-	PagesDir          string
-	TemplateDir       string
-	TemplateExtension string
-	TemplateFS        fs.FS
-}
-
 type GoTemplateRenderer struct {
-	funcs             template.FuncMap
-	pagesDir          string
-	templateDir       string
-	templateExtension string
-	templateFS        fs.FS
-	componentsDir     string
-	layoutsDir        string
+	options    *Options
+	templateFS fs.FS
 
 	allTemplates *template.Template
 }
 
-func NewGoTemplateRenderer(config GoTemplateRendererConfig) (*GoTemplateRenderer, error) {
+func NewGoTemplateRenderer(fs fs.FS, options ...Option) (*GoTemplateRenderer, error) {
+	opts := &Options{
+		funcs:             template.FuncMap{},
+		pagesDir:          "pages",
+		templateDir:       "app",
+		templateExtension: ".html",
+	}
+
+	for _, opt := range options {
+		opt(opts)
+	}
+
+	opts.pagesDir = filepath.Clean(opts.pagesDir)
+
 	renderer := &GoTemplateRenderer{
-		funcs:             config.AdditionalFuncs,
-		pagesDir:          config.PagesDir,
-		templateDir:       config.TemplateDir,
-		templateExtension: config.TemplateExtension,
-		templateFS:        config.TemplateFS,
-	}
-
-	if renderer.pagesDir == "" {
-		return nil, fmt.Errorf("pages directory not provided. this is required to render pages. this directory should contain your HTML templates that rely on layouts and other components")
-	}
-
-	renderer.pagesDir = filepath.Clean(renderer.pagesDir)
-
-	if renderer.templateExtension == "" {
-		renderer.templateExtension = ".html"
+		options:    opts,
+		templateFS: fs,
 	}
 
 	if err := renderer.loadTemplates(); err != nil {
@@ -60,15 +47,15 @@ func NewGoTemplateRenderer(config GoTemplateRendererConfig) (*GoTemplateRenderer
 }
 
 func (tr *GoTemplateRenderer) loadTemplates() error {
-	funcs := getFuncs(tr.funcs)
+	funcs := getFuncs(tr.options.funcs)
 	tr.allTemplates = template.New("").Funcs(funcs)
 
-	return fs.WalkDir(tr.templateFS, tr.templateDir, func(path string, d fs.DirEntry, err error) error {
+	return fs.WalkDir(tr.templateFS, tr.options.templateDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if d.IsDir() || !strings.HasSuffix(path, tr.templateExtension) {
+		if d.IsDir() || !strings.HasSuffix(path, tr.options.templateExtension) {
 			return nil
 		}
 
@@ -77,7 +64,7 @@ func (tr *GoTemplateRenderer) loadTemplates() error {
 		/*
 		 * Skip pages in the pages directory, as we'll load them individually when needed.
 		 */
-		if strings.HasPrefix(templateName, tr.pagesDir) {
+		if strings.HasPrefix(templateName, tr.options.pagesDir) {
 			return nil
 		}
 
@@ -98,7 +85,7 @@ func (tr *GoTemplateRenderer) loadTemplates() error {
 }
 
 func (tr *GoTemplateRenderer) getTemplateName(path string) string {
-	relPath, _ := filepath.Rel(tr.templateDir, path)
+	relPath, _ := filepath.Rel(tr.options.templateDir, path)
 	ext := filepath.Ext(relPath)
 	return strings.TrimSuffix(relPath, ext)
 }
@@ -110,7 +97,7 @@ func (tr *GoTemplateRenderer) Render(templateName string, data any, w io.Writer)
 	 * For templates in the pages directory, we need to create a custom template that includes
 	 * external templates. We do this by cloning allTemplates, then rendering the page template separately.
 	 */
-	if strings.HasPrefix(templateName, tr.pagesDir) {
+	if strings.HasPrefix(templateName, tr.options.pagesDir) {
 		return tr.renderPageWithLayout(templateName, data, w)
 	}
 
@@ -141,7 +128,7 @@ func (tr *GoTemplateRenderer) renderPageWithLayout(templateName string, data any
 		return fmt.Errorf("failed to clone shared templates: %w", err)
 	}
 
-	pagePath := filepath.Join(tr.templateDir, templateName+tr.templateExtension)
+	pagePath := filepath.Join(tr.options.templateDir, templateName+tr.options.templateExtension)
 	pageContent, err := fs.ReadFile(tr.templateFS, pagePath)
 
 	if err != nil {
@@ -160,7 +147,7 @@ func (tr *GoTemplateRenderer) renderPageWithLayout(templateName string, data any
 }
 
 func (tr *GoTemplateRenderer) RenderString(templateString string, data any, w io.Writer) error {
-	funcs := getFuncs(tr.funcs)
+	funcs := getFuncs(tr.options.funcs)
 	tmpl, err := template.New("inline").Funcs(funcs).Parse(templateString)
 
 	if err != nil {

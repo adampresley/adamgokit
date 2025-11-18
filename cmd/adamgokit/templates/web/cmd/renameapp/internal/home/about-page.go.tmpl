@@ -5,14 +5,13 @@ import (
 
 	"github.com/adampresley/adamgokit/httphelpers"
 	"github.com/adampresley/adamgokit/rendering"
-	"{{.GithubRepo}}/cmd/{{.AppName}}/internal/viewmodels"
 )
 
 func (c HomeController) AboutPage(w http.ResponseWriter, r *http.Request) {
 	pageName := "pages/about"
 
 	viewData := AboutPage{
-		BaseViewModel: viewmodels.BaseViewModel{
+		BaseViewModel: rendering.BaseViewModel{
 			IsHtmx:             httphelpers.IsHtmx(r),
 			JavascriptIncludes: []rendering.JavascriptInclude{},
 		},
