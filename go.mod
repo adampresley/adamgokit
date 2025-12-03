@@ -21,6 +21,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.21.0
+	golang.org/x/exp v0.0.0-20251125195548-87e1e737ad39
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 )
 
