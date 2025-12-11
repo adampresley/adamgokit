@@ -3,16 +3,16 @@
 This is a took to generate skeleton applications using my Go kit. It makes use of the following:
 
 * [Go 1.25](https://golang.org)
-* [Adam's Go Kit](https://github.com/adampresley/adamgokit) v..11.20.0
-* [Pico CSS](https://picocss.com) v..12.0.6
-* [HTMX](https://htmx.org) v..12.0.4
+* [Adam's Go Kit](https://github.com/adampresley/adamgokit) v1.20.2
+* [Pico CSS](https://picocss.com) v2.0.6
+* [HTMX](https://htmx.org) v2.0.4
 
 ## Install
 
-To install this tool, ensure you hav..1e Go v..11.23+ and run the following:
+To install this tool, ensure you have Go 1.23+ and run the following:
 
 ```bash
-go install github.com/adampresley/adamgokit/cmd/adamgokit@v..11.19.2
+go install github.com/adampresley/adamgokit/cmd/adamgokit@v1.20.2
 ```
 
 ## 🚀 Usage
