@@ -45,12 +45,10 @@ For more control over the uploaded file, you can use **ReadUploadedFile**. This 
 ```go
 func ProcessUploadHandler(w http.ResponseWriter, r *http.Request) {
 	err := fileuploads.ReadUploadedFile("my-file", r, func(file fileuploads.FileUpload, options *fileuploads.UploadOptions) error {
-		// You have access to the file via file.file (io.Reader)
-		// and file metadata via file.info (*multipart.FileHeader)
-		//
+		// You have access to the file via file.File (multipart.File)
 		// Process the file here, e.g., upload to S3, scan for viruses, etc.
 
-		fmt.Printf("Processing file %s\n", file.info.Filename)
+		fmt.Printf("Processing file %s\n", file.FileName)
 		return nil
 	})
 

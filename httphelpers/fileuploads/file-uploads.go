@@ -15,7 +15,7 @@ import (
 )
 
 type FileUpload struct {
-	file multipart.File
+	File multipart.File
 	info *multipart.FileHeader
 
 	FileName      string
@@ -60,7 +60,7 @@ func ReadUploadedFile(fieldName string, r *http.Request, callback func(file File
 	defer uploadedFile.Close()
 
 	callbackData := FileUpload{
-		file: uploadedFile,
+		File: uploadedFile,
 		info: info,
 	}
 
@@ -107,7 +107,7 @@ func UploadFileToDir(fieldName string, r *http.Request, destDir string, destFile
 			return fmt.Errorf("error creating temporary file '%s': %w", destFileName.String(), err)
 		}
 
-		if _, err = io.Copy(tempFile, file.file); err != nil {
+		if _, err = io.Copy(tempFile, file.File); err != nil {
 			tempFile.Close()
 			return fmt.Errorf("error copying uploaded file '%s' to temporary file '%s': %w", file.info.Filename, destFileName.String(), err)
 		}
